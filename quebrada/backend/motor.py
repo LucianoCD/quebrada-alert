@@ -63,6 +63,11 @@ class Motor:
         self.estado = {c: EstadoCuenca(c) for c in self.cuencas}
         self.nodos = {c.node_id: EstadoNodo(c.node_id, c.basin_id) for c in self.cuencas.values()}
         self._id = self.db.execute("select coalesce(max(id), 0) from eventos").fetchone()[0]
+        # Al reabrir una base existente se reconstruye el semáforo a partir de los eventos guardados.
+        consulta = "select basin_id, nivel, ts, origen from eventos where tipo in ('ALERTA', 'DESCENSO') order by id"
+        for basin_id, nivel, ts, origen in self.db.execute(consulta).fetchall():
+            if basin_id in self.estado:
+                self._transicion(basin_id, Nivel(nivel), ts, origen)
 
     # --- entrada --------------------------------------------------------------------------
 
@@ -184,13 +189,17 @@ class Motor:
                 e.origen = origen
             return
         sube = nivel.orden > e.nivel.orden
+        self._transicion(basin_id, nivel, ts, origen)
+        self._evento(ts, basin_id, node_id, "ALERTA" if sube else "DESCENSO", nivel, origen, detalle)
+
+    def _transicion(self, basin_id: str, nivel: Nivel, ts: datetime, origen: str) -> None:
+        e = self.estado[basin_id]
         critico, era_critico = nivel.orden >= Nivel.NARANJA.orden, e.nivel.orden >= Nivel.NARANJA.orden
         if critico and not era_critico:
             e.arribo_estimado = ts + timedelta(minutes=self.cuencas[basin_id].eta_min)
         elif not critico:
             e.arribo_estimado = None
         e.nivel, e.origen, e.desde = nivel, origen, ts
-        self._evento(ts, basin_id, node_id, "ALERTA" if sube else "DESCENSO", nivel, origen, detalle)
 
     def _evento(self, ts, basin_id, node_id, tipo, nivel: Nivel | None, origen, detalle) -> None:
         self._id += 1

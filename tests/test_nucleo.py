@@ -305,3 +305,43 @@ def test_emergencia_como_primer_contacto_tiene_cuenta_regresiva():
     volcan = next(c for c in motor.resumen()["cuencas"] if c["basin_id"] == CUENCA)
     assert volcan["nivel"] == "RED"
     assert volcan["minutos_restantes"] == pytest.approx(cuencas.cargar()[CUENCA].eta_min, abs=0.5)
+
+
+def test_reinicio_del_backend_conserva_la_alerta(tmp_path):
+    ruta = str(tmp_path / "central.duckdb")
+    motor = Motor(ruta)
+    motor.emergencia(paquete(Nivel.NARANJA))
+    motor.emergencia(paquete(Nivel.ROJO))
+    arribo = motor.estado[CUENCA].arribo_estimado
+    motor.db.close()
+
+    otro = Motor(ruta)
+    estado = otro.estado[CUENCA]
+    assert estado.nivel is Nivel.ROJO and estado.origen == "emergencia"
+    assert estado.arribo_estimado == arribo
+
+
+def test_cuenca_desconocida_no_se_guarda():
+    motor = Motor()
+    with pytest.raises(ValueError):
+        motor.procesar([dato(0, basin_id="CUENCA_INEXISTENTE")])
+    assert cantidad(motor) == 0
+    assert motor.procesar([dato(0)]) == {"nuevas": 1, "repetidas": 0}
+
+
+def test_marca_de_tiempo_sin_zona_se_rechaza():
+    with pytest.raises(ValueError):
+        dato_sin_zona = dato(0, timestamp_utc="2026-01-15T18:00:00")
+        Motor().procesar([dato_sin_zona])
+
+
+def test_reanudar_no_cuenta_lluvia_futura(tmp_path):
+    nodo = Nodo(NODO, CUENCA, tmp_path / "n.sqlite", lambda m: True, inicio=INICIO)
+    nodo.estado.cambiar("tormenta_convectiva", nodo.reloj.timestamp())
+    for _ in range(60):
+        nodo.paso()
+    fin = nodo.reloj
+    nodo.db.close()
+    otro = Nodo(NODO, CUENCA, tmp_path / "n.sqlite", lambda m: True, inicio=INICIO)  # reloj anterior a lo guardado
+    assert otro.reloj == fin
+    assert otro.paso().timestamp_utc > fin
