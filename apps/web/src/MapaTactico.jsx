@@ -13,19 +13,19 @@ setWorkerUrl(workerUrl);
 const leer = (nombre) => fetch(`/datos/${nombre}`).then((r) => (r.ok ? r.json() : Promise.reject(r)));
 
 const CAPAS = [
-  { id: "fondo", type: "background", paint: { "background-color": "#0a0f1a" } },
+  { id: "fondo", type: "background", paint: { "background-color": "#eef2f7" } },
   {
     id: "relieve",
     type: "raster",
     source: "relieve",
-    paint: { "raster-opacity": 0.5, "raster-saturation": -0.35, "raster-brightness-max": 0.9 },
+    paint: { "raster-opacity": 0.6, "raster-saturation": -0.45, "raster-brightness-max": 1.25 },
   },
   {
     id: "rio",
     type: "line",
     source: "contexto",
     filter: ["==", ["get", "tipo"], "rio"],
-    paint: { "line-color": "#38bdf8", "line-width": 2.5, "line-opacity": 0.75 },
+    paint: { "line-color": "#0369a1", "line-width": 2.5, "line-opacity": 0.75 },
   },
   {
     id: "rn9",
@@ -33,7 +33,7 @@ const CAPAS = [
     source: "contexto",
     filter: ["==", ["get", "tipo"], "rn9"],
     paint: {
-      "line-color": "#f8fafc",
+      "line-color": "#475569",
       "line-width": 2,
       "line-opacity": 0.9,
       "line-dasharray": [2, 1.4],
@@ -62,7 +62,7 @@ const CAPAS = [
     id: "cauce",
     type: "line",
     source: "cauces",
-    paint: { "line-color": "#7dd3fc", "line-width": 1.4, "line-opacity": 0.65 },
+    paint: { "line-color": "#0284c7", "line-width": 1.4, "line-opacity": 0.65 },
   },
 ];
 
@@ -229,7 +229,7 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
           ...f,
           properties: {
             ...f.properties,
-            color: c && seleccionRef.current === f.properties.basin_id ? "#ffffff" : NIVELES[nivel].color,
+            color: c && seleccionRef.current === f.properties.basin_id ? "#0f172a" : NIVELES[nivel].color,
             fillOpacity: c ? NIVELES[nivel].fillOpacity : 0.12,
             sel: seleccionRef.current === f.properties.basin_id ? 1 : 0,
           },
@@ -253,7 +253,7 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
       const el = document.createElement("div");
       el.className =
         "pointer-events-auto cursor-pointer rounded-md border px-2 py-1 text-[11px] font-bold shadow-lg backdrop-blur-sm";
-      el.style.cssText = `background:rgba(8,12,20,.9);border-color:${nivel.color};color:${nivel.color}`;
+      el.style.cssText = `background:rgba(255,255,255,.92);border-color:${nivel.color};color:${nivel.color}`;
       const eta = cuenta(c.minutos_restantes);
       el.textContent = `⚠ ${f.properties.nombre} · ETA ${eta ?? "—"}`;
       el.onclick = () => elegir.current(c.basin_id);
@@ -298,8 +298,8 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
             .forEach((f) => {
               const el = document.createElement("div");
               el.className =
-                "pointer-events-none whitespace-nowrap text-[10px] font-semibold text-slate-300";
-              el.style.textShadow = "0 0 4px #000, 0 0 4px #000";
+                "pointer-events-none whitespace-nowrap text-[10px] font-semibold text-slate-700";
+              el.style.textShadow = "0 0 4px #fff, 0 0 4px #fff";
               el.textContent = f.properties.nombre;
               new Marker({ element: el, anchor: "left" }).setLngLat(f.geometry.coordinates).addTo(mapa);
             });
@@ -346,10 +346,10 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
 
   if (errorGL) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-[#0a0f1a] p-6 text-center">
+      <div className="flex h-full w-full items-center justify-center bg-slate-100 p-6 text-center">
         <div className="max-w-sm">
-          <div className="text-lg font-bold text-slate-200">Mapa no disponible</div>
-          <p className="mt-2 text-sm text-slate-400">
+          <div className="text-lg font-bold text-slate-800">Mapa no disponible</div>
+          <p className="mt-2 text-sm text-slate-600">
             Este navegador no pudo inicializar WebGL, necesario para el mapa táctico. Los datos de las cuencas
             siguen disponibles en el panel lateral.
           </p>

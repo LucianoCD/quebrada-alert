@@ -33,41 +33,41 @@ export default function ParteModal({ basinId, cuenca, onCerrar }) {
   };
 
   return (
-    <div className="fixed inset-0 z-40 flex items-center justify-center bg-black/60 p-4" onClick={onCerrar}>
+    <div className="fixed inset-0 z-40 flex items-center justify-center bg-slate-100 p-4" onClick={onCerrar}>
       <div
         className="panel-crisis flex max-h-[85vh] w-[min(640px,100%)] flex-col overflow-hidden"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-700/60 px-4 py-2.5">
+        <div className="flex items-center justify-between border-b border-slate-300 px-4 py-2.5">
           <div>
             <div className="text-sm font-bold">Parte de situación — {cuenca?.localidad ?? basinId}</div>
-            <div className="text-[10px] text-slate-500">{cuenca?.curso} · datos simulados · uso demostrativo</div>
+            <div className="text-[10px] text-slate-600">{cuenca?.curso} · datos simulados · uso demostrativo</div>
           </div>
-          <button type="button" onClick={onCerrar} className="rounded px-2 text-slate-400 hover:bg-slate-700 hover:text-white">
+          <button type="button" onClick={onCerrar} className="rounded px-2 text-slate-600 hover:bg-slate-200 hover:text-slate-800">
             ✕
           </button>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {error && <div className="text-sm text-rose-400">No se pudo obtener el parte.</div>}
-          {!texto && !error && <div className="text-sm text-slate-500">Generando parte…</div>}
+          {!texto && !error && <div className="text-sm text-slate-600">Generando parte…</div>}
           {texto && (
-            <pre className="parte-impresion tabular whitespace-pre-wrap rounded bg-black/50 p-3 font-mono text-[11px] leading-5 text-slate-200">
+            <pre className="parte-impresion tabular whitespace-pre-wrap rounded bg-slate-100 p-3 font-mono text-[11px] leading-5 text-slate-800">
               {texto}
             </pre>
           )}
         </div>
-        <div className="flex items-center justify-end gap-2 border-t border-slate-700/60 px-4 py-2.5">
+        <div className="flex items-center justify-end gap-2 border-t border-slate-300 px-4 py-2.5">
           <button
             type="button"
             onClick={() => window.open(`/api/parte/${basinId}`, "_blank")}
-            className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            className="rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200"
           >
             TXT crudo
           </button>
           <button
             type="button"
             onClick={() => window.print()}
-            className="rounded border border-slate-600 px-3 py-1.5 text-xs text-slate-300 hover:bg-slate-800"
+            className="rounded border border-slate-300 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200"
           >
             Imprimir / PDF
           </button>
