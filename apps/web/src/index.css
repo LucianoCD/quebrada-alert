@@ -1,21 +1,101 @@
 @import "tailwindcss";
-@import "leaflet/dist/leaflet.css";
+@import "@fontsource/inter/400.css";
+@import "@fontsource/inter/600.css";
+@import "@fontsource/inter/700.css";
+@import "@fontsource/jetbrains-mono/400.css";
+@import "@fontsource/jetbrains-mono/700.css";
 
-.leaflet-container {
-  background: #0f172a;
-  font: inherit;
+/* Tokens UI/UX v2.0 (spec §6.1) — tema oscuro táctico */
+:root {
+  --canvas: #080c14;
+  --surface: rgba(15, 23, 42, 0.86);
+  --elevated: #1e293b;
+  --border: rgba(148, 163, 184, 0.16);
+  --text: #f8fafc;
+  --text-2: #94a3b8;
+  --verde: #10b981;
+  --amarillo: #f59e0b;
+  --naranja: #f97316;
+  --rojo: #ef4444;
+  --telemetria: #06b6d4;
+  --recuperado: #8b5cf6;
+  --lora: #fbbf24;
+  --fuente-ui: "Inter", system-ui, sans-serif;
+  --fuente-datos: "JetBrains Mono", ui-monospace, monospace;
 }
 
-.etiqueta-mapa {
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+  background: var(--canvas);
+  color: var(--text);
+  font-family: var(--fuente-ui);
+  font-variant-numeric: tabular-nums;
+}
+
+.tabular {
+  font-family: var(--fuente-datos);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Panel glass del Centro de Comando */
+.panel-crisis {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
+}
+
+/* Borde de advertencia cuando el simulador de crisis está activo */
+.modo-simulador {
+  outline: 2px solid rgba(251, 191, 36, 0.55);
+  outline-offset: -2px;
+}
+
+/* Scrollbars discretas para paneles */
+*::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+*::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.25);
+  border-radius: 4px;
+}
+*::-webkit-scrollbar-track {
   background: transparent;
-  border: 0;
-  box-shadow: none;
-  color: #e2e8f0;
-  font-size: 11px;
-  font-weight: 600;
-  text-shadow: 0 0 3px #000, 0 0 3px #000;
 }
 
-.etiqueta-mapa::before {
-  display: none;
+/* Atribución de MapLibre discreta */
+.maplibregl-ctrl-attrib {
+  background: rgba(8, 12, 20, 0.7) !important;
+  font-size: 9px !important;
+}
+.maplibregl-ctrl-attrib a {
+  color: #64748b !important;
+}
+
+/* Impresión del Parte de Situación: solo el contenido del parte */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .parte-impresion,
+  .parte-impresion * {
+    visibility: visible;
+  }
+  .parte-impresion {
+    position: fixed;
+    inset: 0;
+    background: white;
+    color: black;
+    padding: 2rem;
+  }
+  .parte-impresion pre {
+    color: black;
+    background: transparent;
+  }
 }

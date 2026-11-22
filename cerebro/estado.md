@@ -17,10 +17,17 @@ actualizado: 2026-11-22
 - Geodatos generados: 4 microcuencas, cauces, puntos y contexto.
 - Tests de núcleo (`tests/test_nucleo.py`) y CI en GitHub Actions.
 - Reestructuración a monorepo (`apps/`, `docs/`, `cerebro/`, `.agents/`).
+- Refactor UI/UX v2.0 en `feat/mapa-tactico-alertas-v2` (spec en
+  `docs/especificacion-ui-ux-v2.md`): landing `/`, Centro de Comando
+  `/monitor` con mapa MapLibre+Deck.gl a pantalla completa, lista de cuencas
+  por severidad, inspector con pestañas, parte de situación en modal y
+  consola de crisis en drawer (Fases 1–2 del spec).
 
 ## En curso
 
-- Nada bloqueante al 2026-11-22.
+- Spec UI/UX v2.0: implementadas Fases 1–2 (mapa táctico, inspector,
+  simulador aislado, parte modal). Pendientes Fase 3 (landing 3D R3F) y
+  Fase 4 (QA de resiliencia + fallback WebGL pulido).
 
 ## Bloqueado / riesgos
 
@@ -44,3 +51,11 @@ actualizado: 2026-11-22
 - 2026-11-22 — Se agregó `docs/modelo-negocio-quebrada-alert.md` (modelo B2G con
   canvas y FODA, hipótesis sin validar) con revisión crítica incorporada; se
   resume en [[modelo-negocio]]. Riesgo abierto: comprador único (DPRH).
+- 2026-11-22 — Se implementó la spec UI/UX v2.0 (Fases 1–2) en la rama
+  `feat/mapa-tactico-alertas-v2` desde un worktree aislado (había trabajo
+  paralelo sin commitear de otro agente en `main`). Decisiones: `HashRouter`
+  (el backend sirve estáticos sin rewrite de URLs), gráfica propia en SVG en
+  vez de ECharts (bundle más liviano, semántica suficiente), `TripsLayer` de
+  `@deck.gl/geo-layers` para el flujo animado de cauces, nivel de alerta solo
+  por transición de `edge_local_alert` (los umbrales son de lluvia/ascenso,
+  no de cm absoluto — no se inventan bandas).

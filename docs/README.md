@@ -11,6 +11,9 @@
 - [`modelo-negocio-quebrada-alert.md`](modelo-negocio-quebrada-alert.md) —
   modelo de negocios B2G propuesto, Business Model Canvas, FODA y plan de
   validación (todo lo comercial es hipótesis sin validar).
+- [`especificacion-ui-ux-v2.md`](especificacion-ui-ux-v2.md) — especificación
+  UI/UX v2.0 del tablero (mapa táctico MapLibre+Deck.gl, inspector,
+  simulador de crisis, parte de situación, landing y roadmap en 4 fases).
 
 Para la documentación de usuario final (qué es el proyecto, cómo correrlo,
 geografía y limitaciones) ver [`README.md`](../README.md) en la raíz.
