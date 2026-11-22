@@ -15,6 +15,10 @@ Dos relevamientos en `docs/` alimentan las decisiones de datos del proyecto:
 
 ## Lo esencial
 
+- **Ingesta en API (2026-11-22):** `quebrada/fuentes` sincroniza en automático
+  SNIH (280049, 10040) y Open-Meteo forecast/archive hacia DuckDB
+  (`fuente_lectura`); endpoints en `/api/fuentes*`. Capa de referencia, no
+  gatilla alertas.
 - **No hay mediciones públicas de nivel, caudal ni turbidez en tributarios** →
   siguen simulados. Ver [[limitaciones]].
 - **Lluvia medida**: SNIH Volcán (280049, desde jun-2026, sin tormentas aún) y

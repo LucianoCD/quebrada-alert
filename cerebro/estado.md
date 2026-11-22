@@ -17,11 +17,16 @@ actualizado: 2026-11-22
 - Geodatos generados: 4 microcuencas, cauces, puntos y contexto.
 - Tests de núcleo (`tests/test_nucleo.py`) y CI en GitHub Actions.
 - Reestructuración a monorepo (`apps/`, `docs/`, `cerebro/`, `.agents/`).
-- Refactor UI/UX v2.0 en `feat/mapa-tactico-alertas-v2` (spec en
+- Refactor UI/UX v2.0 mergeado a `main` (spec en
   `docs/especificacion-ui-ux-v2.md`): landing `/`, Centro de Comando
   `/monitor` con mapa MapLibre+Deck.gl a pantalla completa, lista de cuencas
   por severidad, inspector con pestañas, parte de situación en modal y
   consola de crisis en drawer (Fases 1–2 del spec).
+- Ingesta periódica de fuentes externas en MVC
+  (`quebrada/fuentes`: controller–service–repository): SNIH 280049/10040 +
+  Open-Meteo forecast/archive; endpoints `/api/fuentes*`; tablas
+  `fuente_lectura` / `fuente_sincronizacion` (capa de referencia, sin mezclar
+  con nodos). Ver [[fuentes-datos]] y `docs/api.md`.
 
 ## En curso
 

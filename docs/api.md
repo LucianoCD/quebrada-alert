@@ -57,9 +57,31 @@ vivo.
 | `GET /api/parte/{basin_id}` | `text/plain` — parte de situación para organismos (lleva leyenda de demo). `404` si la cuenca no existe. |
 | `GET /api/simulador` | Estado de los nodos simulados (solo demo; requiere `QUEBRADA_NODOS`). |
 | `POST /api/simulador/{node_id}` | Reenvía `{orden}` al puerto de control del nodo simulado. |
+| `GET /api/fuentes` | Catálogo de fuentes externas (SNIH, Open-Meteo forecast/archive), última sync y conteo de lecturas. |
+| `POST /api/fuentes/sincronizar?fuente=` | Dispara una sync manual (`fuente` opcional: `snih` \| `open_meteo_forecast` \| `open_meteo_archive`). |
+| `GET /api/fuentes/lecturas` | Lecturas persistidas (filtros `fuente`, `estacion_id`, `desde`, `hasta`, `limite`). |
+| `GET /api/fuentes/{fuente}/lecturas` | Igual, acotado a una fuente. |
+| `GET /api/fuentes/sincronizaciones` | Bitácora de sincronizaciones. |
 | `WS /ws` | Push del mismo JSON de `/api/estado` cada ~1 s; el cliente solo debe responder para mantener la conexión. |
 | `GET /datos/*` | Archivos estáticos de `docs/data/` (GeoJSON + `relieve.png`). |
 | `/` | Tablero compilado (`apps/web/dist`) si existe. |
+
+### Fuentes externas (capa de referencia)
+
+La API sincroniza periódicamente (y también a demanda) fuentes documentadas en
+`docs/fuentes_datos_quebrada_alert.md`. Las lecturas viven en tablas DuckDB
+`fuente_lectura` / `fuente_sincronizacion` y **no** se mezclan con la telemetría
+de los nodos simulados ni disparan el semáforo.
+
+| Fuente | Qué guarda | Intervalo por defecto |
+|---|---|---|
+| `snih` | Lluvia horaria estaciones 280049 (Volcán) y 10040 (Humahuaca) | 3600 s |
+| `open_meteo_forecast` | Precipitación horaria en las 4 cabeceras | 1800 s |
+| `open_meteo_archive` | ERA5 reciente en las 4 cabeceras | 1800 s |
+
+Variables de entorno: `QUEBRADA_FUENTES_AUTO` (`0` desactiva el scheduler),
+`QUEBRADA_FUENTES_SNIH_INTERVAL_S`, `QUEBRADA_FUENTES_OPEN_METEO_INTERVAL_S`,
+`QUEBRADA_FUENTES_SNIH_DIAS`, `QUEBRADA_FUENTES_ARCHIVE_DIAS`.
 
 ## Eventos del motor
 

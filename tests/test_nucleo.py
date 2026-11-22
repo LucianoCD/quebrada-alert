@@ -248,7 +248,7 @@ def test_nodo_caido_por_falta_de_mensajes(tmp_path):
 
 
 def test_api(tmp_path):
-    with TestClient(crear_app(":memory:")) as cliente:
+    with TestClient(crear_app(":memory:", fuentes_auto=False)) as cliente:
 
         def enviar(ruta):
             return lambda mensajes: cliente.post(ruta, json=mensajes).status_code == 200

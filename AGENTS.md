@@ -8,7 +8,7 @@ Quebrada de Humahuaca. Monorepo: una app Python (`apps/api`), un tablero
 
 | Ruta | Contenido |
 |---|---|
-| `apps/api/quebrada/` | Paquete Python: `schemas` (contratos), `hydrology` (semáforo + Kirpich), `cuencas`, `edge/` (nodo), `backend/` (FastAPI + DuckDB), `demo.py` |
+| `apps/api/quebrada/` | Paquete Python: `schemas` (contratos), `hydrology` (semáforo + Kirpich), `cuencas`, `edge/` (nodo), `backend/` (FastAPI + DuckDB), `fuentes/` (MVC de fuentes externas), `demo.py` |
 | `apps/web/` | Tablero React 19 + Vite + Tailwind 4 + Leaflet |
 | `apps/api/scripts/` | `preparar_geodatos.py` regenera `docs/data/` (requiere `.[geo]`) |
 | `tests/` | pytest — núcleo y API |

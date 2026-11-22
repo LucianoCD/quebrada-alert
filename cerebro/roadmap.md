@@ -28,9 +28,10 @@ Ver [[fuentes-datos]]. Orden sugerido por los relevamientos:
 
 - [ ] Escenario "Volcán 2017": perfil CMORPH del alud (48,6 mm, pico 25,6 mm/h)
       rotulado como estimación satelital.
-- [ ] Día normal y clima base desde Open-Meteo ERA5 para los cuatro puntos.
-- [ ] Capa de referencia con lluvia observada SNIH (Volcán 280049, Humahuaca
-      10040), sin mezclarla con los nodos simulados.
+- [x] Día normal y clima base desde Open-Meteo ERA5 para los cuatro puntos
+      (ingesta periódica `open_meteo_archive` + forecast).
+- [x] Capa de referencia con lluvia observada SNIH (Volcán 280049, Humahuaca
+      10040), sin mezclarla con los nodos simulados (`/api/fuentes`).
 - [ ] Comparar nuestros contornos automáticos con las cuencas FI-UGICH/UNJu–DPRH
       1:50.000 y/o IGN.
 - [ ] Tabla de antecedentes: 52 fichas DesInventar + eventos de literatura.

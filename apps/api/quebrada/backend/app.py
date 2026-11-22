@@ -16,6 +16,9 @@ from fastapi.staticfiles import StaticFiles
 
 from quebrada.backend.motor import Motor
 from quebrada.cuencas import DATOS
+from quebrada.fuentes import FuentesScheduler, FuentesService
+from quebrada.fuentes import crear_router as crear_router_fuentes
+from quebrada.fuentes.config import AUTO_HABILITADO
 from quebrada.schemas import Emergencia, Mensaje
 
 RAIZ = Path(__file__).resolve().parents[4]
@@ -28,8 +31,10 @@ def puertos_nodos() -> dict[str, int]:
     return {k: int(v) for k, v in (par.split("=") for par in crudo.split(",") if par)}
 
 
-def crear_app(ruta_db: str | None = None) -> FastAPI:
+def crear_app(ruta_db: str | None = None, fuentes_auto: bool | None = None) -> FastAPI:
     motor = Motor(ruta_db or os.environ.get("QUEBRADA_DB", ":memory:"))
+    fuentes = FuentesService(motor.db)
+    scheduler = FuentesScheduler(fuentes, habilitado=AUTO_HABILITADO if fuentes_auto is None else fuentes_auto)
     clientes: set[WebSocket] = set()
 
     async def difundir() -> None:
@@ -49,11 +54,18 @@ def crear_app(ruta_db: str | None = None) -> FastAPI:
     @asynccontextmanager
     async def ciclo(_: FastAPI):
         tarea = asyncio.create_task(vigilancia())
-        yield
-        tarea.cancel()
+        scheduler.iniciar()
+        try:
+            yield
+        finally:
+            await scheduler.detener()
+            tarea.cancel()
 
     app = FastAPI(title="QuebradaAlert", lifespan=ciclo)
     app.state.motor = motor
+    app.state.fuentes = fuentes
+    app.state.fuentes_scheduler = scheduler
+    app.include_router(crear_router_fuentes())
 
     @app.post("/api/ingesta")
     async def ingesta(mensajes: list[Mensaje]) -> dict:
