@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { cuenta, NIVELES } from "./niveles.js";
 import { useEstado } from "./hooks.js";
+import EscenaCrecida from "./EscenaCrecida.jsx";
 
 const CUENCAS_LANDING = [
   ["Volcán", "Arroyo del Medio"],
@@ -46,21 +47,11 @@ export default function Landing() {
             {conectado ? "● datos en vivo del servidor local" : "○ servidor no disponible"} · demostración con datos simulados
           </div>
         </div>
-        {/* Placeholder escena 3D — Fase 3 del plan (spec §8) */}
-        <div className="relative flex h-[380px] flex-1 items-center justify-center overflow-hidden rounded-2xl border border-slate-800 bg-gradient-to-b from-[#0a1424] to-[#080C14] lg:h-[480px]">
-          <div
-            className="absolute inset-0 opacity-30"
-            style={{
-              backgroundImage:
-                "repeating-linear-gradient(0deg, transparent, transparent 39px, rgba(6,182,212,0.08) 39px, rgba(6,182,212,0.08) 40px), repeating-linear-gradient(90deg, transparent, transparent 39px, rgba(6,182,212,0.08) 39px, rgba(6,182,212,0.08) 40px)",
-            }}
-          />
-          <div className="relative text-center">
-            <div className="text-5xl">🏔️</div>
-            <div className="mt-3 text-sm font-semibold text-slate-300">Escena 3D de cuenca</div>
-            <div className="mt-1 text-[11px] text-slate-500">
-              Crecida convectiva + modo isla LoRa — Fase 3 (R3F + shaders GLSL)
-            </div>
+        {/* Escena animada de crecida (canvas 2D; la versión 3D R3F es Fase 3 del spec) */}
+        <div className="relative h-[380px] flex-1 overflow-hidden rounded-2xl border border-slate-800 bg-[#0a1424] shadow-[0_0_80px_rgba(14,165,233,0.12)] lg:h-[480px]">
+          <EscenaCrecida />
+          <div className="absolute bottom-3 left-3 rounded-md border border-slate-700/70 bg-black/60 px-2.5 py-1.5 text-[10px] text-slate-400 backdrop-blur-sm">
+            Crecida convectiva simulada · sección transversal del cauce
           </div>
         </div>
       </section>

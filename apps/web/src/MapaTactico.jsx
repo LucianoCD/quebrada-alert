@@ -1,10 +1,14 @@
 import { MapboxOverlay } from "@deck.gl/mapbox";
 import { TripsLayer } from "@deck.gl/geo-layers";
 import { ScatterplotLayer } from "@deck.gl/layers";
-import { LngLatBounds, Map as MLMap, Marker, NavigationControl } from "maplibre-gl";
+import { LngLatBounds, Map as MLMap, Marker, NavigationControl, setWorkerUrl } from "maplibre-gl";
+import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { cuenta, estadoEnlace, NIVELES } from "./niveles.js";
+
+// MapLibre procesa fuentes en un web worker; sin URL explícita el bundle no lo encuentra.
+setWorkerUrl(workerUrl);
 
 const leer = (nombre) => fetch(`/datos/${nombre}`).then((r) => (r.ok ? r.json() : Promise.reject(r)));
 
@@ -112,7 +116,7 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
 
   const construirOverlay = () => {
     if (!mapaRef.current || overlayRef.current) return;
-    overlayRef.current = new MapboxOverlay({ interleaved: true, layers: [] });
+    overlayRef.current = new MapboxOverlay({ interleaved: false, layers: [] });
     mapaRef.current.addControl(overlayRef.current);
     const animar = () => {
       const t = performance.now() / 1000;
