@@ -10,6 +10,7 @@ cualquier agente o integrante del equipo.
 ## Núcleo
 
 - [[proyecto]] — qué es QuebradaAlert, objetivo del hackatón, alcance de la demo. #vision
+- [[modelo-negocio]] — modelo B2G propuesto, canvas, FODA y qué falta validar. #negocio
 - [[estado]] — qué está hecho, en curso y bloqueado. #estado #living
 - [[arquitectura]] — componentes, flujo de datos, protocolos y persistencia. #sistema
 - [[roadmap]] — pendientes y próximos pasos priorizados. #planificacion

@@ -39,6 +39,19 @@ Ver [[fuentes-datos]]. Orden sugerido por los relevamientos:
 - [ ] Solicitudes formales: DPRH telemetría (Potrero de Yala), IGN MDT 5 m,
       SEGEMAR Carta 2366-IV, INTA Hornillos, INA-SIyAH API A5.
 
+## Validación de negocio (de `docs/modelo-negocio-quebrada-alert.md`)
+
+Ver [[modelo-negocio]]. Antes de cobrar:
+
+- [ ] Entrevistar DPRH y Defensa Civil (comprador, presupuesto, exigencias;
+      **qué pasa si la DPRH dice que no**).
+- [ ] Segundo pagador: Vialidad, turismo, aseguradoras (valor asegurable del dato).
+- [ ] BOM de estación + cotización; ancla de precio en licitaciones públicas.
+- [ ] Cuantificar beneficio evitado (alud 2017: RN 9 cortada, >1.000 damnificados).
+- [ ] Medir enlace de respaldo en cabecera real.
+- [ ] Resolver LICENSE del código, licencias de datos, figura jurídica.
+- [ ] Relevar financiamiento para el piloto.
+
 ## Endurecimiento (post-hackatón)
 
 - [ ] Autenticación en `/api/ingesta` y `/api/respaldo` (hoy la red se confía).

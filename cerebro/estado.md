@@ -41,3 +41,6 @@ actualizado: 2026-11-22
   cerebro en [[fuentes-datos]]: sin medición pública de nivel/turbidez en
   tributarios, WRF-DET como motor anticipatorio, satélite = referencia (no
   gatilla), umbrales pendientes de calibración con curvas I–D.
+- 2026-11-22 — Se agregó `docs/modelo-negocio-quebrada-alert.md` (modelo B2G con
+  canvas y FODA, hipótesis sin validar) con revisión crítica incorporada; se
+  resume en [[modelo-negocio]]. Riesgo abierto: comprador único (DPRH).

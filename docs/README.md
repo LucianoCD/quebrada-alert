@@ -8,6 +8,9 @@
 - [`Fuentes de Datos para QuebradaAlert.pdf`](Fuentes%20de%20Datos%20para%20QuebradaAlert.pdf) —
   catálogo técnico de producción (8 pág.): pila de datos, licencias, brechas
   institucionales y hoja de ruta en 3 fases.
+- [`modelo-negocio-quebrada-alert.md`](modelo-negocio-quebrada-alert.md) —
+  modelo de negocios B2G propuesto, Business Model Canvas, FODA y plan de
+  validación (todo lo comercial es hipótesis sin validar).
 
 Para la documentación de usuario final (qué es el proyecto, cómo correrlo,
 geografía y limitaciones) ver [`README.md`](../README.md) en la raíz.

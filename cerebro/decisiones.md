@@ -73,3 +73,17 @@ Ver [[fuentes-datos]] para el detalle y `docs/` para los relevamientos.
 - **Mapa offline con estáticos propios** (`docs/data/`); PMTiles queda como
   escalado futuro.
 - **Licencias**: FABDEM y Open-Meteo gratis son solo no comerciales.
+
+## Modelo de negocio (propuesto 22/11/2026)
+
+Ver [[modelo-negocio]] y `docs/modelo-negocio-quebrada-alert.md`.
+
+- **B2G "alerta como servicio" con núcleo abierto**: cobro por cuenca/año de
+  operación y mantenimiento, no por hardware ni licencia.
+- **Ingreso recurrente como contrato de mantenimiento**, no suscripción SaaS —
+  encaja con el procurement público argentino.
+- **Posicionamiento complementario a la DPRH**: el piloto alimenta su cadena
+  de alerta en vez de competir con ella.
+- **Todo lo comercial es hipótesis sin validar**; riesgo abierto = un solo
+  comprador institucional. Pendientes: LICENSE, licencias de datos, auth en
+  ingesta, BOM de estación, figura jurídica, ancla de precios por licitaciones.
