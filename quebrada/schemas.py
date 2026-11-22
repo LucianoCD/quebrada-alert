@@ -1,9 +1,8 @@
 """Contratos de datos compartidos por los nodos, el backend y el tablero."""
 
-from datetime import datetime
 from enum import Enum
 
-from pydantic import BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field
 
 GRUPO = "QUEBRADA"
 
@@ -39,7 +38,7 @@ class Telemetria(BaseModel):
     node_id: str
     basin_id: str
     seq: int = Field(ge=0)
-    timestamp_utc: datetime
+    timestamp_utc: AwareDatetime
     is_historical: bool = False
     connectivity_state: Conectividad = Conectividad.EN_LINEA
     metrics: Metricas
@@ -52,7 +51,7 @@ class Nacimiento(BaseModel):
     node_id: str
     basin_id: str
     bd_seq: int
-    timestamp_utc: datetime
+    timestamp_utc: AwareDatetime
     keepalive_s: float  # segundos reales sin mensajes tras los cuales el backend lo da por caído
     time_scale: float = 1.0  # segundos simulados por segundo real (1 en campo)
 
@@ -63,7 +62,7 @@ class Emergencia(BaseModel):
     node_id: str
     basin_id: str
     seq: int
-    timestamp_utc: datetime
+    timestamp_utc: AwareDatetime
     edge_local_alert: Nivel
     rain_mm_15m: float
     water_level_rise_15m_cm: float
