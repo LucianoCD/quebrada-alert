@@ -73,11 +73,11 @@ class Motor:
                 self._nacimiento(Nacimiento(**m.payload))
             elif m.tipo == "NDATA":
                 lectura = Telemetria(**m.payload)
+                nodo = self._nodo(lectura.node_id, lectura.basin_id)
                 if not self._guardar(lectura):
                     repetidas += 1
                     continue
                 nuevas += 1
-                nodo = self._nodo(lectura.node_id, lectura.basin_id)
                 nodo.visto = self.reloj()
                 if lectura.is_historical:
                     recuperadas.setdefault(lectura.node_id, []).append(lectura)
