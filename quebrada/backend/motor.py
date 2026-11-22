@@ -38,6 +38,8 @@ class EstadoNodo:
     escala: float = 1.0
     visto: float = 0.0  # reloj monótono del servidor en el último mensaje
     ultimo_ts: datetime | None = None
+    reloj_ts: datetime | None = None  # marca más reciente recibida por cualquier enlace
+    reloj_visto: float = 0.0
     ultima: dict | None = None
     recuperadas: int = 0
 
@@ -79,6 +81,7 @@ class Motor:
                     continue
                 nuevas += 1
                 nodo.visto = self.reloj()
+                self._marcar(nodo, lectura.timestamp_utc)
                 if lectura.is_historical:
                     recuperadas.setdefault(lectura.node_id, []).append(lectura)
                 else:
@@ -91,7 +94,7 @@ class Motor:
 
     def emergencia(self, paquete: Emergencia) -> None:
         """Paquete del enlace de respaldo: sube el semáforo aunque el enlace principal esté caído."""
-        self._nodo(paquete.node_id, paquete.basin_id)
+        self._marcar(self._nodo(paquete.node_id, paquete.basin_id), paquete.timestamp_utc)
         detalle = f"Paquete de emergencia LoRa: {paquete.rain_mm_15m:.1f} mm en 15 min"
         self._nivel(paquete.basin_id, paquete.node_id, paquete.edge_local_alert, paquete.timestamp_utc,
                     "emergencia", detalle, solo_subir=True)  # fmt: skip
@@ -114,8 +117,13 @@ class Motor:
             raise ValueError(f"Cuenca desconocida: {basin_id}")
         return self.nodos.setdefault(node_id, EstadoNodo(node_id, basin_id))
 
+    def _marcar(self, nodo: EstadoNodo, ts: datetime) -> None:
+        if nodo.reloj_ts is None or ts > nodo.reloj_ts:
+            nodo.reloj_ts, nodo.reloj_visto = ts, self.reloj()
+
     def _nacimiento(self, n: Nacimiento) -> None:
         nodo = self._nodo(n.node_id, n.basin_id)
+        self._marcar(nodo, n.timestamp_utc)
         nodo.keepalive_s, nodo.escala, nodo.visto = n.keepalive_s, n.time_scale, self.reloj()
         if not nodo.en_linea:
             nodo.en_linea = True
@@ -193,9 +201,9 @@ class Motor:
 
     def hora_estimada(self, nodo: EstadoNodo) -> datetime | None:
         """Hora del nodo estimada por el servidor: última marca recibida más el tiempo transcurrido."""
-        if nodo.ultimo_ts is None:
+        if nodo.reloj_ts is None:
             return None
-        return nodo.ultimo_ts + timedelta(seconds=(self.reloj() - nodo.visto) * nodo.escala)
+        return nodo.reloj_ts + timedelta(seconds=(self.reloj() - nodo.reloj_visto) * nodo.escala)
 
     def eventos(self, limite: int = 40, basin_id: str | None = None) -> list[dict]:
         filtro = "where basin_id = ?" if basin_id else ""

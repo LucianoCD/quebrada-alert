@@ -271,3 +271,37 @@ def test_api(tmp_path):
         assert cliente.post("/api/ingesta", json=malo).status_code == 422
         with cliente.websocket_connect("/ws") as ws:
             assert len(ws.receive_json()["cuencas"]) == len(cuencas.cargar())
+
+
+def nacimiento(ts=INICIO) -> Mensaje:
+    carga = {"node_id": NODO, "basin_id": CUENCA, "bd_seq": 0, "timestamp_utc": ts.isoformat(), "keepalive_s": 10}
+    return Mensaje(topic=f"spBv1.0/QUEBRADA/NBIRTH/{NODO}", payload=carga)
+
+
+def dato(seq: int, **cambios) -> Mensaje:
+    carga = {"node_id": NODO, "basin_id": CUENCA, "seq": seq, "timestamp_utc": INICIO.isoformat(),
+             "metrics": metricas().model_dump(), **cambios}  # fmt: skip
+    return Mensaje(topic=f"spBv1.0/QUEBRADA/NDATA/{NODO}", payload=carga)
+
+
+def paquete(nivel: Nivel = Nivel.ROJO) -> Emergencia:
+    return Emergencia(node_id=NODO, basin_id=CUENCA, seq=5, timestamp_utc=INICIO, edge_local_alert=nivel,
+                      rain_mm_15m=30, water_level_rise_15m_cm=40)  # fmt: skip
+
+
+def test_nodo_que_cae_sin_telemetria_en_vivo():
+    ahora = [0.0]
+    motor = Motor(reloj=lambda: ahora[0])
+    motor.procesar([nacimiento(), dato(0, is_historical=True)])
+    ahora[0] = 11
+    assert motor.vigilar() == [NODO]
+    caida = motor.resumen()["eventos"][0]
+    assert caida["tipo"] == "NDEATH" and caida["ts"] is not None
+
+
+def test_emergencia_como_primer_contacto_tiene_cuenta_regresiva():
+    motor = Motor()
+    motor.emergencia(paquete())
+    volcan = next(c for c in motor.resumen()["cuencas"] if c["basin_id"] == CUENCA)
+    assert volcan["nivel"] == "RED"
+    assert volcan["minutos_restantes"] == pytest.approx(cuencas.cargar()[CUENCA].eta_min, abs=0.5)
