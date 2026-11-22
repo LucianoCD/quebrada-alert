@@ -1,4 +1,4 @@
-"""Atributos morfométricos de las microcuencas, leídos de data/cuencas.geojson."""
+"""Atributos morfométricos de las microcuencas, leídos de docs/data/cuencas.geojson."""
 
 import json
 from dataclasses import dataclass
@@ -7,7 +7,7 @@ from pathlib import Path
 
 from quebrada.hydrology import kirpich_min
 
-DATOS = Path(__file__).resolve().parent.parent / "data"
+DATOS = Path(__file__).resolve().parents[3] / "docs" / "data"
 
 
 @dataclass(frozen=True)

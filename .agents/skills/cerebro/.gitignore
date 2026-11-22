@@ -1,0 +1,15 @@
+output/*.json
+output/*.md
+scripts/__pycache__/
+tests/__pycache__/
+__pycache__/
+*.pyc
+.pytest_cache/
+.claude/
+.venv/
+
+# Packaging
+build/
+dist/
+*.egg-info/
+src/*.egg-info/

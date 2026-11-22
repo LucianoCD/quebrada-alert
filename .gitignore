@@ -4,7 +4,10 @@ __pycache__/
 data_raw/
 var/
 node_modules/
-frontend/dist/
+apps/web/dist/
 .pytest_cache/
 .ruff_cache/
 *.egg-info/
+AGENTS.local.md
+.devin/config.local.json
+.devin/mcp_config.local.json

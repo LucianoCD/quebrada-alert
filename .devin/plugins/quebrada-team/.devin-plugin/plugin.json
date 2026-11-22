@@ -1,0 +1,9 @@
+{
+  "name": "quebrada-team",
+  "version": "0.1.0",
+  "description": "Skills y reglas del equipo QuebradaAlert: verificación y demo de la red de estaciones",
+  "author": {
+    "name": "Equipo QuebradaAlert"
+  },
+  "keywords": ["quebrada-alert", "hackathon", "hidrologia", "edge"]
+}

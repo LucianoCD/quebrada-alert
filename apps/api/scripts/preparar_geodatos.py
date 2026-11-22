@@ -3,7 +3,7 @@
 - Copernicus DEM GLO-30 (AWS Open Data): microcuencas, cauce principal, longitud y pendiente.
 - OpenStreetMap: traza de la RN 9, cursos de agua con nombre y localidades.
 
-Deja en data/ los GeoJSON y el relieve sombreado que usan el backend y el tablero sin conexión.
+Deja en docs/data/ los GeoJSON y el relieve sombreado que usan el backend y el tablero sin conexión.
 Requiere: pip install -e ".[geo]"
 """
 
@@ -24,9 +24,9 @@ from rasterio.warp import Resampling, calculate_default_transform, reproject
 from shapely.geometry import LineString, Point, mapping, shape
 from shapely.ops import nearest_points, transform, unary_union
 
-RAIZ = Path(__file__).resolve().parent.parent
+RAIZ = Path(__file__).resolve().parents[3]
 CRUDO = RAIZ / "data_raw"
-SALIDA = RAIZ / "data"
+SALIDA = RAIZ / "docs" / "data"
 OESTE, SUR, ESTE, NORTE = -65.75, -24.05, -65.25, -23.45
 UTM = "EPSG:32719"
 TESELA = "Copernicus_DSM_COG_10_S24_00_W066_00_DEM"

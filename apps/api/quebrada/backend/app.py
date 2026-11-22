@@ -18,8 +18,8 @@ from quebrada.backend.motor import Motor
 from quebrada.cuencas import DATOS
 from quebrada.schemas import Emergencia, Mensaje
 
-RAIZ = Path(__file__).resolve().parent.parent.parent
-TABLERO = RAIZ / "frontend" / "dist"
+RAIZ = Path(__file__).resolve().parents[4]
+TABLERO = RAIZ / "apps" / "web" / "dist"
 
 
 def puertos_nodos() -> dict[str, int]:

@@ -1,0 +1,21 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(**)",
+      "Exec(git status)",
+      "Exec(git diff)",
+      "Exec(git log)",
+      "Exec(git show)",
+      "Exec(pytest)",
+      "Exec(ruff)",
+      "Exec(python -m quebrada.demo)",
+      "Exec(npm run build)",
+      "Exec(npm ci)",
+      "Exec(npx skills)"
+    ],
+    "deny": [
+      "Write(.env*)",
+      "Write(**/.env*)"
+    ]
+  }
+}

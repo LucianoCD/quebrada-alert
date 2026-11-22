@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "skills": {
+    "cerebro": {
+      "source": "microhustlestack/cerebro-skill",
+      "commit": "c1685eaffb1de13ba907dab425950de2fbcda59e",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "834bd4342df7a8c841a17de79f67b80c4c668946d4c5f86439a85ae3dc79a92a"
+    }
+  }
+}

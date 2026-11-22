@@ -19,12 +19,12 @@ Requiere Python 3.10 o superior y Node.js 20 o superior (solo para compilar el t
 ```bash
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
-(cd frontend && npm ci && npm run build)
+(cd apps/web && npm ci && npm run build)
 python -m quebrada.demo
 ```
 
 Abrir <http://127.0.0.1:8000>. Después de compilar el tablero no hace falta conexión a internet: el mapa
-usa un relieve y capas GeoJSON guardados en `data/`.
+usa un relieve y capas GeoJSON guardados en `docs/data/`.
 
 `python -m quebrada.demo` levanta el backend y un proceso por estación. El tiempo simulado corre 60 veces
 más rápido que el real (`--escala`): una tormenta de una hora dura un minuto.
@@ -33,14 +33,27 @@ Tests y estilo: `pytest -q` y `ruff check .`
 
 ## Qué hay
 
+Monorepo organizado para trabajar en equipo con agentes. Reglas y comandos en
+[`AGENTS.md`](AGENTS.md); memoria compartida del equipo en
+[`cerebro/`](cerebro/README.md); contratos de la API en
+[`docs/api.md`](docs/api.md).
+
 | Carpeta | Contenido |
 |---|---|
-| `quebrada/schemas.py` | Contratos Pydantic de telemetría, nacimiento del nodo y paquete de emergencia. |
-| `quebrada/hydrology.py` | Semáforo y fórmula de Kirpich, como funciones puras. |
-| `quebrada/edge/` | Nodo simulado: SQLite en modo WAL, secuencia, modo isla, cola de reenvío y alerta local. |
-| `quebrada/backend/` | FastAPI + DuckDB: ingesta, reconciliación, motor de alertas, WebSocket y parte de situación. |
-| `frontend/` | Tablero React + Vite + Tailwind + Leaflet con la consola de crisis. |
-| `scripts/preparar_geodatos.py` | Delimita las microcuencas y genera las capas de `data/`. |
+| `apps/api/quebrada/` | Paquete Python del proyecto. |
+| `apps/api/quebrada/schemas.py` | Contratos Pydantic de telemetría, nacimiento del nodo y paquete de emergencia. |
+| `apps/api/quebrada/hydrology.py` | Semáforo y fórmula de Kirpich, como funciones puras. |
+| `apps/api/quebrada/edge/` | Nodo simulado: SQLite en modo WAL, secuencia, modo isla, cola de reenvío y alerta local. |
+| `apps/api/quebrada/backend/` | FastAPI + DuckDB: ingesta, reconciliación, motor de alertas, WebSocket y parte de situación. |
+| `apps/api/quebrada/demo.py` | Orquesta el backend y un proceso por estación (`python -m quebrada.demo`). |
+| `apps/web/` | Tablero React + Vite + Tailwind + Leaflet con la consola de crisis. |
+| `docs/data/` | GeoJSON y relieve que el backend sirve en `/datos`. |
+| `apps/api/scripts/preparar_geodatos.py` | Delimita las microcuencas y genera las capas de `docs/data/`. |
+| `tests/` | Tests del núcleo y de la API (pytest). |
+| `docs/` | Documentación para humanos; `api.md` resume contratos y endpoints. |
+| `cerebro/` | Memoria compartida: decisiones, estado, glosario y roadmap del equipo. |
+| `.agents/skills/` | Skills del proyecto (se restauran con `npx skills experimental_install`). |
+| `.devin/` | Config de Devin CLI y plugin local `quebrada-team`. |
 
 ### Nodo
 
@@ -98,7 +111,7 @@ registro.
 - **Tiempo de arribo:** Kirpich, $t_c = 0{,}0195\,L^{0{,}77}\,S^{-0{,}385}$, aplicado al tramo entre la
   estación y la RN 9.
 
-Para regenerar las capas: `pip install -e ".[geo]"` y `python scripts/preparar_geodatos.py` (descarga el
+Para regenerar las capas: `pip install -e ".[geo]"` y `python apps/api/scripts/preparar_geodatos.py` (descarga el
 MDE y OSM en `data_raw/`).
 
 ## Limitaciones
