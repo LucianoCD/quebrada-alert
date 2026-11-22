@@ -52,6 +52,9 @@ class Nodo:
         self.db.execute("pragma synchronous=normal")
         self.db.executescript(ESQUEMA)
         self.reloj = inicio or datetime.now(timezone.utc)
+        ultima = self.db.execute("select max(ts) from lecturas").fetchone()[0]
+        if ultima:  # al reanudar, el reloj no retrocede respecto de lo ya guardado
+            self.reloj = max(self.reloj, datetime.fromisoformat(ultima))
         self.estado = Estado(lluvia_previa_72h_mm=lluvia_previa_72h_mm)
         self.enlace_activo = True  # enlace principal (celular)
         self.respaldo_activo = True  # enlace de respaldo de corto alcance (LoRa)
