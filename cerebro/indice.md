@@ -21,6 +21,7 @@ cualquier agente o integrante del equipo.
 - [[glosario]] — términos del dominio: semáforo, isla, NDEATH, Kirpich… #dominio
 - [[limitaciones]] — límites conocidos de la demo y del modelo. #riesgos
 - [[fuentes-datos]] — relevamiento de fuentes de datos abiertas y su estado de verificación. #datos
+- `docs/estudio_viabilidad_foda.md` — estudio de viabilidad + FODA (humano, fuera del vault). #viabilidad
 
 ## Operación
 

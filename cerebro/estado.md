@@ -43,6 +43,9 @@ actualizado: 2026-11-22
 
 ## Contexto reciente
 
+- 2026-11-22 — Se redactó `docs/estudio_viabilidad_foda.md`: viabilidad + FODA
+  del prototipo, propuesta de valor B2G, gap vs *De Prototipo a Piloto*, y
+  encaje complementario con la propuesta de TF FI-UNJu (CAFI 085/22).
 - 2026-11-22 — Se reorganizó el repo como monorepo para trabajo en equipo con
   agentes: `quebrada/` → `apps/api/quebrada/`, `frontend/` → `apps/web/`,
   `scripts/` → `apps/api/scripts/`, `data/` → `docs/data/`; se agregaron `docs/`,

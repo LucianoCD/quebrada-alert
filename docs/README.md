@@ -2,6 +2,10 @@
 
 - [`api.md`](api.md) — endpoints, contratos Pydantic y reglas del protocolo
   Sparkplug B sobre HTTP. Referencia para trabajar en `apps/api` y `apps/web`.
+- [`estudio_viabilidad_foda.md`](estudio_viabilidad_foda.md) — estudio de
+  viabilidad técnica/operativa/institucional y FODA (22/11/2026), cruzando el
+  prototipo con la propuesta de valor, el estudio *De Prototipo a Piloto* y la
+  propuesta de TF FI-UNJu.
 - [`fuentes_datos_quebrada_alert.md`](fuentes_datos_quebrada_alert.md) —
   relevamiento de fuentes de datos abiertas (22/11/2026), con estado de
   verificación por fuente y recomendaciones.
