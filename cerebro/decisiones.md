@@ -52,3 +52,24 @@ necesita para detectar ascenso rápido del cauce → se agregó al schema
 
 El "LoRa" se emula como `POST /api/respaldo`. Decisión consciente para la demo;
 el alcance real en quebradas queda como [[roadmap#si-hay-tiempo|pendiente]].
+
+## Fuentes de datos (relevamiento 22/11/2026)
+
+Ver [[fuentes-datos]] para el detalle y `docs/` para los relevamientos.
+
+- **El satélite no gatilla**: con tc de 18–54 min en subcuencas, ningún producto
+  de observación (latencia 2–18 h) sirve para disparar evacuación. Los satélites
+  calibran y anticipan; la alerta táctica depende del nodo local y del pronóstico
+  numérico.
+- **WRF-DET 4 km como motor anticipatorio** si se integra producción
+  (`s3://smn-ar-wrf`, PP 10M/1H, SMOIS, Freezing_level).
+- **Nivel, turbidez, batería y fallas siguen simulados**: no existe medición
+  pública de esas variables en tributarios.
+- **Umbrales pendientes de calibración local**: se parte de curvas de
+  referencia (Guzzetti 2008, Caine 1980) y análogos semiáridos, con regla
+  condicionada por humedad del suelo e isoterma 0 °C.
+- **Copernicus GLO-30 + OSM confirmados** como base estática; FI-UGICH/UNJu–DPRH
+  (1:50.000) es la alternativa oficial a nuestra delimitación automática.
+- **Mapa offline con estáticos propios** (`docs/data/`); PMTiles queda como
+  escalado futuro.
+- **Licencias**: FABDEM y Open-Meteo gratis son solo no comerciales.

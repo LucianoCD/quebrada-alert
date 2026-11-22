@@ -19,6 +19,7 @@ cualquier agente o integrante del equipo.
 - [[decisiones]] — decisiones técnicas con su motivo (ADRs ligeros). #decisiones
 - [[glosario]] — términos del dominio: semáforo, isla, NDEATH, Kirpich… #dominio
 - [[limitaciones]] — límites conocidos de la demo y del modelo. #riesgos
+- [[fuentes-datos]] — relevamiento de fuentes de datos abiertas y su estado de verificación. #datos
 
 ## Operación
 

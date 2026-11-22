@@ -36,3 +36,8 @@ actualizado: 2026-11-22
   `scripts/` → `apps/api/scripts/`, `data/` → `docs/data/`; se agregaron `docs/`,
   `cerebro/` (este vault), `.agents/skills/` (skill `cerebro` instalada),
   `.devin/` y `AGENTS.md`.
+- 2026-11-22 — Se incorporaron dos relevamientos de fuentes de datos en `docs/`
+  (verificación de campo + catálogo técnico de producción) y se integraron al
+  cerebro en [[fuentes-datos]]: sin medición pública de nivel/turbidez en
+  tributarios, WRF-DET como motor anticipatorio, satélite = referencia (no
+  gatilla), umbrales pendientes de calibración con curvas I–D.

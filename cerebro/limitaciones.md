@@ -28,6 +28,21 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
 - **Nodos simulados**: procesos Python con reloj acelerado (`--escala`), no
   firmware de campo.
 
+## Datos (relevamiento 22/11/2026)
+
+- **Sin medición pública de nivel, caudal ni turbidez** en los tributarios:
+  esas variables son simuladas por necesidad, no por elección.
+- **Satélite no sirve para gatilla**: latencia de 2–18 h frente a tc de 18–54
+  min. Sirve para antecedente (SMAP/IMERG) y calibración histórica.
+- **Red terrestre escasa**: el SMN deja ~230 km de vacío entre sus estaciones
+  fuera del cañón; SNIH solo tiene Volcán y Humahuaca (ninguna en cabecera, sin
+  temporada de lluvias aún).
+- **Acceso institucional pendiente**: SMN SAT sin API oficial; DPRH sin portal
+  público de telemetría; IGN MDT 5 m y Carta SEGEMAR 2366-IV solo por solicitud.
+- **Preprint retractado**: nhess-2018-207 no usar para calibrar; preferir
+  Geografska Annaler 2020 / informes DPRH.
+- **Licencias no comerciales**: FABDEM (CC BY-NC-SA) y Open-Meteo gratis.
+
 ## Presentación
 
 - El tablero **nunca pasa a rojo**: el caso más extremo se comunica por el
