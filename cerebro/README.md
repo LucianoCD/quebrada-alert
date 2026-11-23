@@ -8,9 +8,9 @@ Este directorio es la **memoria compartida** de QuebradaAlert: todo el equipo
 1. **Al empezar a trabajar**, leer `indice.md` y las notas relevantes a la tarea.
 2. **Al terminar**, actualizar `estado.md` y la nota que corresponda si cambió
    una decisión, una limitación o un pendiente.
-3. Las notas se enlazan con `[[wikilinks]]` y se etiquetan con `#tags`. El
-   análisis estructural (conexiones, huecos, notas huérfanas) lo hace la skill
-   `cerebro` (`.agents/skills/cerebro/`).
+3. Las notas se enlazan con wikilinks (enlaces entre dobles corchetes) y se
+   etiquetan con `#tags`. El análisis estructural (conexiones, huecos, notas
+   huérfanas) lo hace la skill `cerebro` (`.agents/skills/cerebro/`).
 4. Hechos verificables van en `docs/` o en el código; aquí va el **por qué** y
    el **estado**: decisiones, pendientes, contexto de dominio.
 5. Una nota por tema, frases cortas, fechas en ISO (`2026-11-22`).

@@ -1,6 +1,6 @@
 ---
 tags: [riesgos, limitaciones]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Limitaciones conocidas
@@ -17,7 +17,8 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
 - **Cuencas sin validar**: contornos automáticos sin contrastar con cartografía
   oficial/DPRH; la cuenca de Purmamarca (380 km²) no es una microcuenca.
 - **Sensores simulados**: lluvia, nivel y turbidez salen de un modelo de
-  reservorio lineal sin base local; sin perfiles de tormenta reales.
+  reservorio lineal sin base local; los escenarios operativos son sintéticos,
+  salvo `volcan_2017_cmorph` rotulado como estimación satelital.
 
 ## Infraestructura
 
@@ -45,5 +46,11 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
 
 ## Presentación
 
-- El tablero **nunca pasa a rojo**: el caso más extremo se comunica por el
-  evento `RECUPERACION` del motor, no por el estado visual.
+- El tablero v2.0 ya representa los 4 niveles del semáforo incluyendo `ROJO`
+  (`#EF4444` y banner crítico), pero la vista `3D` actual solo inclina la cámara
+  (`pitch`) hasta integrar teselas `Terrain-RGB` en el mapa.
+- La landing utiliza una animación 2D en canvas (`EscenaCrecida.jsx`) como
+  placeholder mientras quedan pendientes la Fase 3 (escena 3D R3F) y la Fase 4
+  (QA de resiliencia y fallback WebGL pulido).
+- El tema implementado en `apps/web/src/index.css` es claro (`#eef2f7`) en
+  lugar del *Dark Mode* descrito originalmente en `docs/especificacion-ui-ux-v2.md`.

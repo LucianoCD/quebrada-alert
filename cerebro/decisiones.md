@@ -1,6 +1,6 @@
 ---
 tags: [decisiones, adr]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Decisiones técnicas
@@ -87,3 +87,27 @@ Ver [[modelo-negocio]] y `docs/modelo-negocio-quebrada-alert.md`.
 - **Todo lo comercial es hipótesis sin validar**; riesgo abierto = un solo
   comprador institucional. Pendientes: LICENSE, licencias de datos, auth en
   ingesta, BOM de estación, figura jurídica, ancla de precios por licitaciones.
+
+## Tablero táctico UI/UX v2.0
+
+- **MapLibre GL + Deck.gl offline**: reemplaza a Leaflet para soportar
+  animaciones de escorrentía (`TripsLayer`) y transición progresiva hacia vista
+  3D sin depender de CDNs externos (`setWorkerUrl(workerUrl)`).
+- **`HashRouter` para despliegue estático**: el backend FastAPI sirve
+  `apps/web/dist` en `/` sin reglas de rewrite SPA, por lo que las rutas
+  usan hash (`/#/monitor`).
+- **Gráfica SVG propia en el Inspector**: evita el peso de bundle de ECharts y
+  marca cambios de alerta exclusivamente por transición de `edge_local_alert`,
+  sin inventar bandas fijas en `cm` absolutos.
+- **Aislamiento de `ConsolaSimulador`**: los controles de falla e inyección de
+  tormentas viven ocultos tras `modoSimulador === true` (tecla `S`) para
+  separar operación y demostración.
+- **Tema claro (`#eef2f7`) en Fases 1–2**: prioriza legibilidad sobre relieve
+  cartográfico claro; el *Dark Mode* y la escena R3F permanecen evaluables en
+  Fases 3–4.
+- **Contratos estrictos y Terrain-RGB offline (2026-11-23)**: `Mensaje.topic`
+  valida `spBv1.0/QUEBRADA/<NBIRTH|NDATA>/<node_id>` y coincidencia con
+  `payload.node_id` (`422`); `preparar_geodatos.py` incorpora codificación
+  Mapbox Terrain-RGB para preparar teselas 3D locales sin alterar los activos
+  GeoJSON actuales, y `escenarios.py` incorpora `volcan_2017_cmorph` rotulado
+  como estimación satelital histórica.
