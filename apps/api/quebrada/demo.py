@@ -86,6 +86,12 @@ def main() -> None:
     finally:
         for proceso in procesos:
             proceso.terminate()
+        for proceso in procesos:
+            try:
+                proceso.wait(timeout=5)
+            except subprocess.TimeoutExpired:
+                proceso.kill()
+                proceso.wait()
 
 
 if __name__ == "__main__":

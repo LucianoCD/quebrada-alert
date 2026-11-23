@@ -1,6 +1,6 @@
 ---
 tags: [estado, living]
-actualizado: 2026-11-22
+actualizado: 2026-11-23
 ---
 
 # Estado actual
@@ -13,7 +13,7 @@ actualizado: 2026-11-22
   WebSocket, parte de situación y consola de crisis (`/api/simulador`).
 - Nodo edge simulado con SQLite WAL, secuencia, modo isla, cola de reenvío,
   paquete de emergencia por respaldo y baliza local.
-- Tablero React+Vite+Tailwind+Leaflet offline (relieve + GeoJSON en `docs/data/`).
+- Tablero React+Vite+Tailwind+MapLibre+Deck.gl offline (relieve + GeoJSON en `docs/data/`).
 - Geodatos generados: 4 microcuencas, cauces, puntos y contexto.
 - Tests de núcleo (`tests/test_nucleo.py`) y CI en GitHub Actions.
 - Reestructuración a monorepo (`apps/`, `docs/`, `cerebro/`, `.agents/`).
@@ -49,8 +49,10 @@ actualizado: 2026-11-22
 - 2026-11-22 — Se reorganizó el repo como monorepo para trabajo en equipo con
   agentes: `quebrada/` → `apps/api/quebrada/`, `frontend/` → `apps/web/`,
   `scripts/` → `apps/api/scripts/`, `data/` → `docs/data/`; se agregaron `docs/`,
-  `cerebro/` (este vault), `.agents/skills/` (skill `cerebro` instalada),
-  `.devin/` y `AGENTS.md`.
+  `cerebro/` (este vault), `.agents/skills/` (skills `cerebro`,
+  `ponytail-mvp-audit`, `quebrada-fuentes-y-geodatos`,
+  `quebrada-nucleo-edge-y-motor`, `quebrada-operacion-demo-y-verificacion`,
+  `quebrada-tablero-tactico-y-3d`), `.devin/` y `AGENTS.md`.
 - 2026-11-22 — Se incorporaron dos relevamientos de fuentes de datos en `docs/`
   (verificación de campo + catálogo técnico de producción) y se integraron al
   cerebro en [[fuentes-datos]]: sin medición pública de nivel/turbidez en
@@ -67,3 +69,10 @@ actualizado: 2026-11-22
   `@deck.gl/geo-layers` para el flujo animado de cauces, nivel de alerta solo
   por transición de `edge_local_alert` (los umbrales son de lluvia/ascenso,
   no de cm absoluto — no se inventan bandas).
+- 2026-11-23 — Se resolvieron los Issues #2, #3, #6 y #8: `threading.RLock` y
+  vaciado multi-lote seguro en `edge/nodo.py` + `edge/proceso.py`; validación
+  estricta de tópicos Sparkplug B en `schemas.py` (`422` en lugar de `500`) y
+  restauración de `EstadoNodo` tras reiniciar DuckDB en `backend/motor.py`;
+  utilidades Terrain-RGB offline en `preparar_geodatos.py`, escenario histórico
+  `volcan_2017_cmorph` y curvas de referencia Caine/Guzzetti en `hydrology.py`;
+  y sincronización de `cerebro/` (ver [[decisiones]] y [[limitaciones]]).

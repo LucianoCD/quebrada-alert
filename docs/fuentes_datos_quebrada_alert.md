@@ -182,3 +182,29 @@ para producción que complementa este relevamiento. Coincidencias y aportes:
 - **Mapa offline**: el PDF propone Protomaps PMTiles + Geofabrik; la demo ya lo
   resuelve con archivos estáticos propios en `docs/data/` — PMTiles es la vía si
   se escala a móvil o a todo el corredor.
+
+## 10. Protocolo de contraste cartográfico, Terrain-RGB offline y matriz de licencias
+
+### 10.1 Contraste de cuencas automáticas (`docs/data/cuencas.geojson`)
+Los polígonos actuales delimitados automáticamente con `pysheds` sobre Copernicus GLO-30 (en particular `CUENCA_PURMAMARCA` con `379,9 km²`) deben contrastarse antes de un piloto con:
+- **FI-UGICH/UNJu–DPRH (1:50.000):** áreas hidrológicas y subcuencas oficiales del Río Grande.
+- **IGN WFS (`ANIDA/fisiconat_hidro02`):** cuencas y trazado oficial de rutas/cursos.
+
+Métricas mínimas de validación por cuenca:
+1. Error relativo de área $|\Delta A| / A_{\text{oficial}} \le 10\%$.
+2. Índice de Jaccard (IoU) entre polígonos $\ge 0{,}80$.
+3. Desplazamiento del punto de cruce con la RN 9 $\le 100\text{ m}$ respecto al puente/badén oficial de Vialidad Nacional.
+
+### 10.2 Generación offline de Terrain-RGB
+El script `apps/api/scripts/preparar_geodatos.py` incorpora codificación **Mapbox Terrain-RGB** (`codificar_terrain_rgb` / `generar_terrain_rgb`, paso vertical $0{,}1\text{ m}$, base $-10000\text{ m}$) proyectando Copernicus GLO-30 a `EPSG:3857` en teselas `256x256` PNG para zooms `10..12` bajo `docs/data/terrain/{z}/{x}/{y}.png`, registrando el descriptor `terrain` en `contexto.geojson` sin alterar los 5 archivos base de la demo.
+
+### 10.3 Matriz de licencias para transición demo → piloto comercial B2G
+| Activo / Fuente | Licencia actual | Uso permitido | Acción para piloto comercial B2G |
+|---|---|---|---|
+| Copernicus DEM GLO-30 | Abierta (Copernicus / AWS Open Data) | Comercial y no comercial | Conservar atribución. |
+| OpenStreetMap | ODbL | Comercial con atribución y Share-Alike en derivados | Mantener atribución ODbL. |
+| WRF-DET 4 km (SMN AWS) | CC BY 2.5 | Comercial con atribución | Conservar atribución SMN. |
+| Open-Meteo (tier gratuito) | Solo no comercial | **Restringido en piloto pago** | Migrar a instancia self-hosted o licencia comercial. |
+| FABDEM | CC BY-NC-SA | **Solo no comercial** | No incorporar en servicio comercial sin licencia específica. |
+| SNIH / IGN / DPRH / SEGEMAR | Institucional sin API/licencia unificada | Pendiente de confirmación formal | Solicitar convenios y permisos explícitos antes de operación. |
+| Preprint `nhess-2018-207` | **Retractado** | Prohibido para calibración | Usar *Geografska Annaler* (2020) e informes DPRH/SEGEMAR. |
