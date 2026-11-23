@@ -51,8 +51,9 @@ class FuentesScheduler:
                 continue
             try:
                 resultado = await self.service.sincronizar(fuente)
-                self._ultima[fuente] = ahora
                 estado = resultado[0].estado if resultado else "?"
+                if estado == "ok":
+                    self._ultima[fuente] = ahora
                 log.info("fuente %s sincronizada: %s", fuente.value, estado)
             except Exception:  # noqa: BLE001
                 log.exception("falló la sincronización de %s", fuente.value)

@@ -13,6 +13,7 @@ from quebrada.fuentes.config import ESTACIONES_OPEN_METEO, ESTACIONES_SNIH
 from quebrada.fuentes.models import FuenteId, LecturaExterna, OrigenLectura, ResultadoSincronizacion
 from quebrada.fuentes.repositories.fuentes_repository import FuentesRepository
 from quebrada.fuentes.services.fuentes_service import FuentesService
+from quebrada.fuentes.services.scheduler import FuentesScheduler
 
 
 def test_parse_fecha_snih():
@@ -107,6 +108,16 @@ def test_servicio_sincroniza_y_persiste(monkeypatch):
     assert resultados[0].estado == "ok"
     assert resultados[0].nuevas == 1
     assert service.repo.contar_lecturas(FuenteId.SNIH) == 1
+
+
+def test_scheduler_reintenta_errores_sin_consumir_el_intervalo():
+    class ServicioConError:
+        async def sincronizar(self, fuente):
+            return [ResultadoSincronizacion(fuente=fuente, estado="error", detalle="timeout")]
+
+    scheduler = FuentesScheduler(ServicioConError())
+    asyncio.run(scheduler._correr_pendientes(forzar=True))
+    assert scheduler._ultima == {}
 
 
 def test_endpoints_fuentes():

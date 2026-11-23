@@ -47,21 +47,13 @@ class FuentesRepository:
         """Inserta lecturas nuevas. Devuelve (nuevas, repetidas)."""
         nuevas = repetidas = 0
         for lectura in lecturas:
-            existe = self.db.execute(
-                """
-                select 1 from fuente_lectura
-                where fuente = ? and estacion_id = ? and variable = ? and ts = ? and origen = ?
-                """,
-                [lectura.fuente.value, lectura.estacion_id, lectura.variable, lectura.ts, lectura.origen.value],
-            ).fetchone()
-            if existe:
-                repetidas += 1
-                continue
-            self.db.execute(
+            insertada = self.db.execute(
                 """
                 insert into fuente_lectura
                 (fuente, estacion_id, variable, ts, valor, unidad, origen, lat, lon, meta)
                 values (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                on conflict do nothing
+                returning fuente
                 """,
                 [
                     lectura.fuente.value,
@@ -75,8 +67,11 @@ class FuentesRepository:
                     lectura.lon,
                     json.dumps(lectura.meta, ensure_ascii=False),
                 ],
-            )
-            nuevas += 1
+            ).fetchone()
+            if insertada:
+                nuevas += 1
+            else:
+                repetidas += 1
         return nuevas, repetidas
 
     def registrar_sincronizacion(self, resultado: ResultadoSincronizacion) -> ResultadoSincronizacion:
