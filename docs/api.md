@@ -16,8 +16,7 @@ Base: `http://127.0.0.1:8000`. El tablero usa proxy de Vite para `/api`,
 | `spBv1.0/QUEBRADA/NBIRTH/<nodo>` | `Nacimiento` | Registra nodo, keepalive y escala de tiempo. |
 | `spBv1.0/QUEBRADA/NDATA/<nodo>` | `Telemetria` | Guarda lectura `(node_id, seq)`; si está en vivo, alimenta el semáforo; si es histórica, solo completa la serie. |
 
-Respuesta: `{"nuevas": n, "repetidas": n}`. `422` si el payload no valida o la
-cuenca es desconocida.
+Respuesta: `{"nuevas": n, "repetidas": n}`. `422` si el tópico no cumple `spBv1.0/QUEBRADA/<NBIRTH|NDATA>/<nodo>`, `payload.node_id` difiere del tópico, el payload no valida o la cuenca es desconocida.
 
 ### `Nacimiento`
 
@@ -38,7 +37,7 @@ false), `connectivity_state` (`ONLINE`|`ISLAND_MODE`), `metrics`,
 
 ## Respaldo (enlace secundario → backend)
 
-`POST /api/respaldo` — body: lista de `Mensaje` cuyo payload es `Emergencia`.
+`POST /api/respaldo` — body: lista de `Mensaje` con tópico `NDATA` cuyo payload es `Emergencia`.
 El gateway LoRa solo reenvía paquetes de emergencia. Un nivel recibido así
 **solo puede subir** el estado de la cuenca; la bajada espera telemetría en
 vivo.
@@ -62,7 +61,7 @@ vivo.
 | `GET /api/fuentes/lecturas` | Lecturas persistidas (filtros `fuente`, `estacion_id`, `desde`, `hasta`, `limite`). |
 | `GET /api/fuentes/{fuente}/lecturas` | Igual, acotado a una fuente. |
 | `GET /api/fuentes/sincronizaciones` | Bitácora de sincronizaciones. |
-| `WS /ws` | Push del mismo JSON de `/api/estado` cada ~1 s; el cliente solo debe responder para mantener la conexión. |
+| `WS /ws` | Push del mismo JSON de `/api/estado` cada ~1 s; no requiere mensajes del cliente (solo mantener abierta la conexión). |
 | `GET /datos/*` | Archivos estáticos de `docs/data/` (GeoJSON + `relieve.png`). |
 | `/` | Tablero compilado (`apps/web/dist`) si existe. |
 

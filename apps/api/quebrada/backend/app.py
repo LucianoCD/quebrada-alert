@@ -5,6 +5,7 @@ uvicorn quebrada.backend.app:app --port 8000
 
 import asyncio
 import json
+import logging
 import os
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -23,12 +24,27 @@ from quebrada.schemas import Emergencia, Mensaje
 
 RAIZ = Path(__file__).resolve().parents[4]
 TABLERO = RAIZ / "apps" / "web" / "dist"
+log = logging.getLogger("quebrada.backend")
 
 
 def puertos_nodos() -> dict[str, int]:
     """Puertos de control de los nodos simulados, para la consola de crisis: 'NODO=puerto,NODO=puerto'."""
     crudo = os.environ.get("QUEBRADA_NODOS", "")
-    return {k: int(v) for k, v in (par.split("=") for par in crudo.split(",") if par)}
+    puertos: dict[str, int] = {}
+    for par in crudo.split(","):
+        par = par.strip()
+        if not par:
+            continue
+        k, sep, v = par.partition("=")
+        k, v = k.strip(), v.strip()
+        if not sep or not k:
+            log.warning("Entrada inválida en QUEBRADA_NODOS ignorada: %r", par)
+            continue
+        try:
+            puertos[k] = int(v)
+        except ValueError:
+            log.warning("Puerto inválido en QUEBRADA_NODOS ignorado: %r", par)
+    return puertos
 
 
 def crear_app(ruta_db: str | None = None, fuentes_auto: bool | None = None) -> FastAPI:
@@ -81,6 +97,8 @@ def crear_app(ruta_db: str | None = None, fuentes_auto: bool | None = None) -> F
         """Entrada del gateway del enlace de respaldo (LoRa): solo paquetes de emergencia."""
         try:
             for m in mensajes:
+                if m.tipo != "NDATA":
+                    raise ValueError(f"Tipo de mensaje no admitido en respaldo: {m.tipo}")
                 motor.emergencia(Emergencia(**m.payload))
         except ValueError as error:
             raise HTTPException(422, str(error)) from error
@@ -136,6 +154,8 @@ def crear_app(ruta_db: str | None = None, fuentes_auto: bool | None = None) -> F
             while True:
                 await conexion.receive_text()
         except WebSocketDisconnect:
+            pass
+        finally:
             clientes.discard(conexion)
 
     app.mount("/datos", StaticFiles(directory=DATOS), name="datos")

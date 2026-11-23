@@ -1,10 +1,13 @@
 """Contratos de datos compartidos por los nodos, el backend y el tablero."""
 
+from __future__ import annotations
+
 from enum import Enum
 
-from pydantic import AwareDatetime, BaseModel, Field
+from pydantic import AwareDatetime, BaseModel, Field, field_validator, model_validator
 
 GRUPO = "QUEBRADA"
+TIPOS_MENSAJE = frozenset({"NBIRTH", "NDATA"})
 
 
 class Nivel(str, Enum):
@@ -74,9 +77,34 @@ class Mensaje(BaseModel):
     topic: str
     payload: dict
 
+    @field_validator("topic")
+    @classmethod
+    def validar_topic(cls, v: str) -> str:
+        partes = v.split("/")
+        if (
+            len(partes) != 4
+            or not all(partes)
+            or partes[0] != "spBv1.0"
+            or partes[1] != GRUPO
+            or partes[2] not in TIPOS_MENSAJE
+        ):
+            raise ValueError(f"Tópico Sparkplug B inválido: se espera spBv1.0/{GRUPO}/<NBIRTH|NDATA>/<node_id>")
+        return v
+
+    @model_validator(mode="after")
+    def validar_coincidencia_nodo(self) -> Mensaje:
+        nodo_payload = self.payload.get("node_id")
+        if nodo_payload is not None and nodo_payload != self.node_id:
+            raise ValueError(f"El node_id del payload ({nodo_payload}) no coincide con el tópico ({self.node_id})")
+        return self
+
     @property
     def tipo(self) -> str:
         return self.topic.split("/")[2]
+
+    @property
+    def node_id(self) -> str:
+        return self.topic.split("/")[3]
 
 
 def topico(tipo: str, node_id: str) -> str:

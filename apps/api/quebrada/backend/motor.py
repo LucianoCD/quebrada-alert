@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 import duckdb
 
 from quebrada import cuencas, hydrology
-from quebrada.schemas import Emergencia, Mensaje, Nacimiento, Nivel, Telemetria
+from quebrada.schemas import Conectividad, Emergencia, Mensaje, Metricas, Nacimiento, Nivel, Telemetria
 
 ESQUEMA = """
 create table if not exists telemetria (
@@ -68,6 +68,55 @@ class Motor:
         for basin_id, nivel, ts, origen in self.db.execute(consulta).fetchall():
             if basin_id in self.estado:
                 self._transicion(basin_id, Nivel(nivel), ts, origen)
+        self._restaurar_nodos()
+
+    def _restaurar_nodos(self) -> None:
+        """Reconstruye relojes y última lectura de cada nodo tras reabrir una base DuckDB."""
+        for node_id, total in self.db.execute(
+            "select node_id, count(*) from telemetria where is_historical group by node_id"
+        ).fetchall():
+            if node_id in self.nodos:
+                self.nodos[node_id].recuperadas = total
+
+        for node_id, ts in self.db.execute("select node_id, max(ts) from telemetria group by node_id").fetchall():
+            if node_id in self.nodos and ts is not None:
+                self._marcar(self.nodos[node_id], ts)
+
+        vivas = self.db.execute(
+            "select node_id, basin_id, seq, ts, rain_mm_15m, rain_mm_60m, antecedent_rain_72h_mm, "
+            "water_level_cm, water_level_rise_15m_cm, turbidity_proxy_ntu, battery_soc_pct, edge_local_alert "
+            "from telemetria where not is_historical "
+            "qualify row_number() over (partition by node_id order by seq desc) = 1"
+        ).fetchall()
+        for node_id, basin_id, seq, ts, r15, r60, r72, wl, rise, turb, bat, alert in vivas:
+            if node_id not in self.nodos:
+                continue
+            nodo = self.nodos[node_id]
+            nodo.ultimo_ts = ts
+            nodo.ultima = Telemetria(
+                node_id=node_id,
+                basin_id=basin_id,
+                seq=seq,
+                timestamp_utc=ts,
+                is_historical=False,
+                connectivity_state=Conectividad.EN_LINEA,
+                metrics=Metricas(
+                    rain_mm_15m=r15,
+                    rain_mm_60m=r60,
+                    antecedent_rain_72h_mm=r72,
+                    water_level_cm=wl,
+                    water_level_rise_15m_cm=rise,
+                    turbidity_proxy_ntu=turb,
+                    battery_soc_pct=bat,
+                ),
+                edge_local_alert=Nivel(alert),
+            ).model_dump(mode="json")
+
+        for node_id, ts in self.db.execute(
+            "select node_id, max(ts) from eventos where ts is not null group by node_id"
+        ).fetchall():
+            if node_id in self.nodos and ts is not None:
+                self._marcar(self.nodos[node_id], ts)
 
     # --- entrada --------------------------------------------------------------------------
 
@@ -172,14 +221,15 @@ class Motor:
         self._nivel(x.basin_id, x.node_id, nivel, x.timestamp_utc, "telemetría en vivo", detalle)
 
     def _recuperacion(self, nodo: EstadoNodo, lecturas: list[Telemetria]) -> None:
-        nodo.recuperadas += len(lecturas)
-        peor = max(lecturas, key=lambda x: x.edge_local_alert.orden)
+        ordenadas = sorted(lecturas, key=lambda x: x.seq)
+        nodo.recuperadas += len(ordenadas)
+        peor = max(ordenadas, key=lambda x: x.edge_local_alert.orden)
         detalle = (
-            f"{len(lecturas)} lecturas recuperadas del búfer local (seq {lecturas[0].seq} a {lecturas[-1].seq}); "
+            f"{len(ordenadas)} lecturas recuperadas del búfer local (seq {ordenadas[0].seq} a {ordenadas[-1].seq}); "
             f"nivel local máximo durante el corte: {peor.edge_local_alert.name} a las "
             f"{peor.timestamp_utc:%H:%M} UTC. No genera alerta."
         )
-        self._evento(lecturas[-1].timestamp_utc, nodo.basin_id, nodo.node_id, "RECUPERACION", None, "nodo", detalle)
+        self._evento(ordenadas[-1].timestamp_utc, nodo.basin_id, nodo.node_id, "RECUPERACION", None, "nodo", detalle)
 
     def _nivel(self, basin_id, node_id, nivel: Nivel, ts: datetime, origen: str, detalle: str,
                solo_subir: bool = False) -> None:  # fmt: skip
