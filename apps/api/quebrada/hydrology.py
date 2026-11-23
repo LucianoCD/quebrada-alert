@@ -22,6 +22,39 @@ class Umbrales:
 
 UMBRALES = Umbrales()
 
+# Valores ilustrativos por cuenca; hoy comparten UMBRALES hasta calibrar con datos locales de DPRH/SEGEMAR.
+UMBRALES_POR_CUENCA: dict[str, Umbrales] = {
+    "CUENCA_ARROYO_MEDIO": UMBRALES,
+    "CUENCA_TUMBAYA_GRANDE": UMBRALES,
+    "CUENCA_PURMAMARCA": UMBRALES,
+    "CUENCA_HUASAMAYO": UMBRALES,
+}
+
+
+def umbrales_para(basin_id: str | None = None) -> Umbrales:
+    """Devuelve los umbrales configurados para una cuenca (o los globales por defecto)."""
+    if basin_id is None:
+        return UMBRALES
+    return UMBRALES_POR_CUENCA.get(basin_id, UMBRALES)
+
+
+def intensidad_caine_mm_h(duracion_h: float) -> float:
+    """Umbral global de intensidad-duración de Caine (1980): I = 14,82 · D^-0,39 (mm/h)."""
+    if duracion_h <= 0:
+        raise ValueError("La duración debe ser positiva")
+    return 14.82 * duracion_h**-0.39
+
+
+def intensidad_guzzetti_mm_h(duracion_h: float) -> float:
+    """Umbral mínimo global de Guzzetti et al. (2008): I = 2,20 · D^-0,44 (mm/h).
+
+    Referencia previa a calibración local; no usar el preprint retractado nhess-2018-207.
+    """
+    if duracion_h <= 0:
+        raise ValueError("La duración debe ser positiva")
+    return 2.20 * duracion_h**-0.44
+
+
 ACCIONES = {
     Nivel.VERDE: "Monitoreo de rutina.",
     Nivel.AMARILLO: "Avisar a la guardia técnica de la DPRH y verificar el estado de los drenajes urbanos.",
