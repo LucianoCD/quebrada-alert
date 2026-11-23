@@ -6,12 +6,13 @@ conexión, vacía la cola marcando los registros atrasados con is_historical.
 
 import json
 import sqlite3
+import threading
 from collections.abc import Callable
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 from quebrada import hydrology
-from quebrada.edge.escenarios import Estado
+from quebrada.edge.escenarios import ESCENARIOS, Estado
 from quebrada.schemas import Conectividad, Emergencia, Metricas, Nacimiento, Nivel, Telemetria, topico
 
 ESQUEMA = """
@@ -65,6 +66,7 @@ class Nodo:
         self.emergencia_enviada = Nivel.VERDE
         self.registro: list[str] = []
         self.ultima: Telemetria | None = None
+        self._lock = threading.RLock()
 
     # --- almacenamiento local -------------------------------------------------------------
 
@@ -76,10 +78,12 @@ class Nodo:
         self.db.execute("insert or replace into meta values (?, ?)", (clave, str(valor)))
 
     def en_cola(self) -> int:
-        return self.db.execute("select count(*) from lecturas where enviado = 0").fetchone()[0]
+        with self._lock:
+            return self.db.execute("select count(*) from lecturas where enviado = 0").fetchone()[0]
 
     def ultimo_seq(self) -> int:
-        return self.db.execute("select coalesce(max(seq), -1) from lecturas").fetchone()[0]
+        with self._lock:
+            return self.db.execute("select coalesce(max(seq), -1) from lecturas").fetchone()[0]
 
     def _suma_lluvia(self, minutos: float) -> float:
         desde = (self.reloj - timedelta(minutes=minutos)).isoformat()
@@ -100,44 +104,48 @@ class Nodo:
 
     def paso(self) -> Telemetria:
         """Avanza el reloj un intervalo de muestreo, mide, evalúa y transmite. Devuelve la lectura."""
-        dt = hydrology.intervalo_muestreo_s(self.nivel)
-        self.reloj += timedelta(seconds=dt)
-        medido = self.estado.avanzar(self.reloj.timestamp(), dt)
-        previo = self._nivel_hace(15)
-        metricas = Metricas(
-            rain_mm_15m=round(self._suma_lluvia(15) + medido["lluvia_mm"], 2),
-            rain_mm_60m=round(self._suma_lluvia(60) + medido["lluvia_mm"], 2),
-            antecedent_rain_72h_mm=round(
-                self.estado.lluvia_previa_72h_mm + self._suma_lluvia(72 * 60) + medido["lluvia_mm"], 2
-            ),
-            water_level_cm=round(medido["nivel_cm"], 1),
-            water_level_rise_15m_cm=round(max(0.0, medido["nivel_cm"] - previo), 1) if previo is not None else 0.0,
-            turbidity_proxy_ntu=round(medido["turbidez_ntu"], 1),
-            battery_soc_pct=round(self.estado.bateria_pct, 1),
-        )
-        anterior, self.nivel = self.nivel, hydrology.clasificar(metricas)
-        if self.nivel != anterior:
-            self._anotar(f"Semáforo local: {anterior.name} -> {self.nivel.name}")
-        self.baliza = self.nivel is Nivel.ROJO
-        seq = self.ultimo_seq() + 1
-        lectura = Telemetria(
-            node_id=self.node_id,
-            basin_id=self.basin_id,
-            seq=seq,
-            timestamp_utc=self.reloj,
-            connectivity_state=self.conectividad,
-            metrics=metricas,
-            edge_local_alert=self.nivel,
-        )
-        with self.db:
-            self.db.execute(
-                "insert into lecturas (seq, ts, lluvia_mm, nivel_cm, carga) values (?, ?, ?, ?, ?)",
-                (seq, self.reloj.isoformat(), medido["lluvia_mm"], medido["nivel_cm"], lectura.model_dump_json()),
+        with self._lock:
+            dt = hydrology.intervalo_muestreo_s(self.nivel)
+            self.reloj += timedelta(seconds=dt)
+            medido = self.estado.avanzar(self.reloj.timestamp(), dt)
+            previo = self._nivel_hace(15)
+            metricas = Metricas(
+                rain_mm_15m=round(self._suma_lluvia(15) + medido["lluvia_mm"], 2),
+                rain_mm_60m=round(self._suma_lluvia(60) + medido["lluvia_mm"], 2),
+                antecedent_rain_72h_mm=round(
+                    self.estado.lluvia_previa_72h_mm + self._suma_lluvia(72 * 60) + medido["lluvia_mm"], 2
+                ),
+                water_level_cm=round(medido["nivel_cm"], 1),
+                water_level_rise_15m_cm=round(max(0.0, medido["nivel_cm"] - previo), 1) if previo is not None else 0.0,
+                turbidity_proxy_ntu=round(medido["turbidez_ntu"], 1),
+                battery_soc_pct=round(self.estado.bateria_pct, 1),
             )
-        self.ultima = lectura
-        self.sincronizar()
-        self._emergencia(lectura)
-        return lectura
+            anterior, self.nivel = self.nivel, hydrology.clasificar(metricas)
+            if self.nivel != anterior:
+                self._anotar(f"Semáforo local: {anterior.name} -> {self.nivel.name}")
+            self.baliza = self.nivel is Nivel.ROJO
+            seq = self.ultimo_seq() + 1
+            lectura = Telemetria(
+                node_id=self.node_id,
+                basin_id=self.basin_id,
+                seq=seq,
+                timestamp_utc=self.reloj,
+                connectivity_state=self.conectividad,
+                metrics=metricas,
+                edge_local_alert=self.nivel,
+            )
+            with self.db:
+                self.db.execute(
+                    "insert into lecturas (seq, ts, lluvia_mm, nivel_cm, carga) values (?, ?, ?, ?, ?)",
+                    (seq, self.reloj.isoformat(), medido["lluvia_mm"], medido["nivel_cm"], lectura.model_dump_json()),
+                )
+            self.ultima = lectura
+            self.sincronizar()
+            if self.conectividad is Conectividad.ISLA and lectura.connectivity_state is not Conectividad.ISLA:
+                lectura = lectura.model_copy(update={"connectivity_state": Conectividad.ISLA})
+                self.ultima = lectura
+            self._emergencia(lectura)
+            return lectura
 
     # --- transmisión ----------------------------------------------------------------------
 
@@ -151,39 +159,45 @@ class Nodo:
 
     def sincronizar(self) -> int:
         """Envía lo pendiente en orden de secuencia. Devuelve cuántas lecturas confirmó el backend."""
-        confirmadas = 0
-        while True:
-            filas = self.db.execute(
-                "select seq, carga from lecturas where enviado = 0 order by seq limit ?", (self.lote,)
-            ).fetchall()
-            if not filas:
-                break
-            ultimo = self.ultimo_seq()
-            mensajes = []
-            if not self.nacido:
-                mensajes.append({"topic": topico("NBIRTH", self.node_id), "payload": self._nacimiento()})
-            for seq, carga in filas:
-                datos = json.loads(carga)
-                # Solo la lectura recién tomada es telemetría en vivo; el resto es recuperación.
-                datos["is_historical"] = seq != ultimo
-                datos["connectivity_state"] = Conectividad.EN_LINEA.value
-                mensajes.append({"topic": topico("NDATA", self.node_id), "payload": datos})
-            if not self._transmitir(mensajes):
-                if self.conectividad is Conectividad.EN_LINEA:
-                    self._anotar("Sin enlace: paso a ISLAND_MODE, las lecturas quedan en la cola local")
-                self.conectividad, self.nacido = Conectividad.ISLA, False
-                return confirmadas
-            with self.db:
-                self.db.executemany("update lecturas set enviado = 1 where seq = ?", [(s,) for s, _ in filas])
-            if self.conectividad is Conectividad.ISLA:
-                self._anotar("Enlace restablecido: vaciando la cola local")
-            if not self.nacido:
-                self._guardar_meta("bd_seq", self._meta("bd_seq") + 1)
-                self.db.commit()
-            self.conectividad, self.nacido = Conectividad.EN_LINEA, True
-            self.emergencia_enviada = Nivel.VERDE
-            confirmadas += len(filas)
-        return confirmadas
+        with self._lock:
+            confirmadas = 0
+            estaba_en_isla = self.conectividad is Conectividad.ISLA
+            anoto_reconexion = False
+            while True:
+                filas = self.db.execute(
+                    "select seq, carga from lecturas where enviado = 0 order by seq limit ?", (self.lote,)
+                ).fetchall()
+                if not filas:
+                    break
+                ultimo = self.ultimo_seq()
+                mensajes = []
+                if not self.nacido:
+                    mensajes.append({"topic": topico("NBIRTH", self.node_id), "payload": self._nacimiento()})
+                for seq, carga in filas:
+                    datos = json.loads(carga)
+                    # Solo la lectura recién tomada es telemetría en vivo; el resto es recuperación.
+                    datos["is_historical"] = seq != ultimo
+                    datos["connectivity_state"] = Conectividad.EN_LINEA.value
+                    mensajes.append({"topic": topico("NDATA", self.node_id), "payload": datos})
+                if not self._transmitir(mensajes):
+                    if self.conectividad is Conectividad.EN_LINEA:
+                        self._anotar("Sin enlace: paso a ISLAND_MODE, las lecturas quedan en la cola local")
+                    self.conectividad, self.nacido = Conectividad.ISLA, False
+                    return confirmadas
+                with self.db:
+                    self.db.executemany("update lecturas set enviado = 1 where seq = ?", [(s,) for s, _ in filas])
+                if estaba_en_isla and not anoto_reconexion:
+                    self._anotar("Enlace restablecido: vaciando la cola local")
+                    anoto_reconexion = True
+                if not self.nacido:
+                    self._guardar_meta("bd_seq", self._meta("bd_seq") + 1)
+                    self.db.commit()
+                    self.nacido = True
+                confirmadas += len(filas)
+            if confirmadas > 0:
+                self.conectividad = Conectividad.EN_LINEA
+                self.emergencia_enviada = Nivel.VERDE
+            return confirmadas
 
     def _nacimiento(self) -> dict:
         return Nacimiento(
@@ -223,19 +237,42 @@ class Nodo:
         else:
             self._anotar("El paquete de emergencia no llegó al gateway; se reintenta en la próxima lectura")
 
+    def aplicar_control(
+        self,
+        *,
+        escenario: str | None = None,
+        enlace_activo: bool | None = None,
+        respaldo_activo: bool | None = None,
+        lluvia_previa_72h_mm: float | None = None,
+    ) -> dict:
+        """Aplica órdenes de control de la demo de forma segura frente a concurrencia."""
+        with self._lock:
+            if escenario is not None:
+                if escenario not in ESCENARIOS:
+                    raise ValueError(f"Escenario desconocido: {escenario}")
+                self.estado.cambiar(escenario, self.reloj.timestamp())
+            if enlace_activo is not None:
+                self.enlace_activo = enlace_activo
+            if respaldo_activo is not None:
+                self.respaldo_activo = respaldo_activo
+            if lluvia_previa_72h_mm is not None:
+                self.estado.lluvia_previa_72h_mm = max(0.0, lluvia_previa_72h_mm)
+            return self.resumen()
+
     def resumen(self) -> dict:
-        return {
-            "node_id": self.node_id,
-            "basin_id": self.basin_id,
-            "connectivity_state": self.conectividad.value,
-            "enlace_activo": self.enlace_activo,
-            "respaldo_activo": self.respaldo_activo,
-            "en_cola": self.en_cola(),
-            "ultimo_seq": self.ultimo_seq(),
-            "edge_local_alert": self.nivel.value,
-            "baliza": self.baliza,
-            "escenario": self.estado.escenario,
-            "reloj": self.reloj.isoformat(),
-            "ultima": self.ultima.model_dump(mode="json") if self.ultima else None,
-            "registro": self.registro[-12:],
-        }
+        with self._lock:
+            return {
+                "node_id": self.node_id,
+                "basin_id": self.basin_id,
+                "connectivity_state": self.conectividad.value,
+                "enlace_activo": self.enlace_activo,
+                "respaldo_activo": self.respaldo_activo,
+                "en_cola": self.en_cola(),
+                "ultimo_seq": self.ultimo_seq(),
+                "edge_local_alert": self.nivel.value,
+                "baliza": self.baliza,
+                "escenario": self.estado.escenario,
+                "reloj": self.reloj.isoformat(),
+                "ultima": self.ultima.model_dump(mode="json") if self.ultima else None,
+                "registro": self.registro[-12:],
+            }

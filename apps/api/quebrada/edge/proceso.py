@@ -13,7 +13,6 @@ import uvicorn
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
-from quebrada.edge.escenarios import ESCENARIOS
 from quebrada.edge.nodo import Nodo
 from quebrada.hydrology import intervalo_muestreo_s
 from quebrada.schemas import Nivel
@@ -46,17 +45,15 @@ def crear_app(nodo: Nodo, escala: float) -> FastAPI:
 
     @app.post("/control")
     def control(orden: Orden) -> dict:
-        if orden.escenario is not None:
-            if orden.escenario not in ESCENARIOS:
-                raise HTTPException(422, f"Escenario desconocido: {orden.escenario}")
-            nodo.estado.cambiar(orden.escenario, nodo.reloj.timestamp())
-        if orden.enlace_activo is not None:
-            nodo.enlace_activo = orden.enlace_activo
-        if orden.respaldo_activo is not None:
-            nodo.respaldo_activo = orden.respaldo_activo
-        if orden.lluvia_previa_72h_mm is not None:
-            nodo.estado.lluvia_previa_72h_mm = max(0.0, orden.lluvia_previa_72h_mm)
-        return nodo.resumen()
+        try:
+            return nodo.aplicar_control(
+                escenario=orden.escenario,
+                enlace_activo=orden.enlace_activo,
+                respaldo_activo=orden.respaldo_activo,
+                lluvia_previa_72h_mm=orden.lluvia_previa_72h_mm,
+            )
+        except ValueError as error:
+            raise HTTPException(422, str(error)) from error
 
     return app
 
