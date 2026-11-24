@@ -11,6 +11,8 @@ import MapaCorredor, {
   crecidaSimulada,
   DURACION_SIMULACION,
   encuadre,
+  franja,
+  semiancho,
 } from "../MapaCorredor.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
@@ -256,7 +258,38 @@ describe("Componentes tácticos UI v2", () => {
     const medio = crecidaSimulada(7, 52);
     expect(medio.nivel).toBe("RED");
     expect(medio.restantes).toBeCloseTo(52 * (1 - medio.fraccion));
-    expect(crecidaSimulada(DURACION_SIMULACION, 52)).toMatchObject({ nivel: "RED", lluvia: 0, fraccion: 1, restantes: 0 });
+    expect(medio.crecida).toBe(1);
+    // Al final la tormenta se retiró y el río volvió a su cauce.
+    expect(crecidaSimulada(DURACION_SIMULACION, 52)).toMatchObject({ nivel: "RED", lluvia: 0, crecida: 0, fraccion: 1, restantes: 0 });
+  });
+
+  it("semiancho ensancha el río con la crecida y aguas abajo, y lo abulta detrás del frente", () => {
+    const rio = { largo: 300, estacion: 150, fin: 300 };
+    expect(semiancho(200, { ...rio, crecida: 1 })).toBeGreaterThan(2 * semiancho(200, { ...rio, crecida: 0.3 }));
+    expect(semiancho(200, { ...rio, crecida: 1 })).toBeGreaterThan(semiancho(60, { ...rio, crecida: 1 }));
+    expect(semiancho(286, { ...rio, crecida: 1 })).toBeGreaterThan(semiancho(200, { ...rio, crecida: 1 }));
+    // Sin crecida queda el cauce normal, y sin frente se afina hasta él en la estación.
+    expect(semiancho(200, { ...rio, crecida: 0 })).toBeCloseTo(1.2);
+    expect(semiancho(150, { ...rio, fin: 150, crecida: 1 })).toBeCloseTo(1.2);
+  });
+
+  it("franja dibuja el río crecido solo hasta donde llegó el frente", () => {
+    const rio = { puntos: [[0, 0, 0], [100, 0, 100], [200, 0, 200]], estacion: 100, largo: 200 };
+    const xs = (d) => d.match(/[ML](-?[\d.]+),/g).map((m) => Number(m.slice(1, -1)));
+    const media = franja(rio, 1, 150);
+    expect(media).not.toMatch(/NaN/);
+    expect(Math.max(...xs(media))).toBe(150);
+    expect(Math.max(...xs(franja(rio, 1, 200)))).toBe(200);
+  });
+
+  it("MapaCorredor dibuja el río crecido solo en las cuencas con alerta", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    const crecidas = [...container.querySelectorAll("[data-crecida]")].map((e) => e.dataset.crecida).sort();
+    expect(crecidas).toEqual(CUENCAS_DEMO.filter((c) => c.nivel !== "GREEN").map((c) => c.basin_id).sort());
   });
 
   it("ampliar y acotarVista no dejan ver fuera del mapa ni pasar los límites de zoom", () => {

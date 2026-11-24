@@ -161,10 +161,6 @@ body,
   transition: width 0.9s cubic-bezier(0.3, 0, 0.2, 1);
 }
 
-.corredor-crece path {
-  transition: stroke-width 1.2s ease-out;
-}
-
 .corredor-arrastre .corredor-vista,
 .corredor-arrastre .corredor-marca,
 .corredor-arrastre .corredor-etiqueta,
@@ -183,8 +179,7 @@ body,
   .corredor-vista,
   .corredor-marca,
   .corredor-etiqueta,
-  .corredor-escala,
-  .corredor-crece path {
+  .corredor-escala {
     transition: none;
   }
 }

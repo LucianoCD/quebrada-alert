@@ -98,18 +98,71 @@ const CAJAS = Object.fromEntries(
 const ENCUADRES = Object.fromEntries(corredor.cuencas.map((g) => [g.basin_id, encuadre(g)]));
 const iguales = (a, b) => a && b && a.k === b.k && a.tx === b.tx && a.ty === b.ty;
 
-export const DURACION_SIMULACION = 15;
+/** Eje del cauce (naciente → estación → cruce con la RN 9) con la distancia acumulada de cada vértice. */
+function eje(g) {
+  const n = g.cabecera.match(/-?\d+(\.\d+)?/g).map(Number);
+  const cabecera = n.flatMap((x, i) => (i % 2 ? [] : [[x, n[i + 1]]]));
+  const linea = [...cabecera, ...g.tramo.slice(1)];
+  let s = 0;
+  const puntos = linea.map(([x, y], i) => {
+    if (i) s += Math.hypot(x - linea[i - 1][0], y - linea[i - 1][1]);
+    return [x, y, s];
+  });
+  return { puntos, estacion: puntos[cabecera.length - 1][2], largo: s };
+}
+
+const EJES = Object.fromEntries(corredor.cuencas.map((g) => [g.basin_id, eje(g)]));
+const CAUCE_NORMAL = 1.2;
 
 /**
- * Crecida ilustrativa a los `t` segundos: llueve en la cabecera, el cauce crece, el frente baja hasta
- * la RN 9 y la tormenta se retira. No usa datos de ninguna estación.
+ * Semiancho del río crecido a `s` px de la naciente: crece con la crecida y aguas abajo, y se abulta
+ * detrás del frente. Mientras el frente no salió de la estación, se afina hasta el cauce normal.
+ */
+export function semiancho(s, { crecida, largo, estacion, fin }) {
+  const cuerpo = CAUCE_NORMAL + crecida * (2 + 5.5 * (s / largo) ** 0.7);
+  const afinado = CAUCE_NORMAL + (cuerpo - CAUCE_NORMAL) * suave(rampa(fin - s, 0, 40));
+  const abultado = cuerpo * (1 + 0.35 * crecida * Math.exp(-(((fin - s - 14) / 22) ** 2)));
+  return afinado + (abultado - afinado) * rampa(fin - estacion, 0, 40);
+}
+
+/**
+ * Contorno relleno del río crecido desde la naciente hasta `fin`: un trapecio por tramo y un disco
+ * por vértice, todos con el mismo sentido de giro para que se unan al rellenar.
+ */
+export function franja({ puntos, estacion, largo }, crecida, fin, margen = 0) {
+  const hasta = puntos.findIndex(([, , s]) => s >= fin);
+  const [a, b] = [puntos[Math.max(0, hasta - 1)], puntos[hasta]];
+  const k = b[2] > a[2] ? entre((fin - a[2]) / (b[2] - a[2]), 0, 1) : 0;
+  const eje = [...puntos.slice(0, hasta), [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, fin]];
+  const n = (v) => v.toFixed(1);
+  const radios = eje.map(([, , s]) => semiancho(s, { crecida, largo, estacion, fin }) + margen);
+  return eje
+    .map(([x, y], i) => {
+      const r = radios[i];
+      const disco = `M${n(x - r)},${n(y)}a${n(r)},${n(r)} 0 1,0 ${n(2 * r)},0a${n(r)},${n(r)} 0 1,0 ${n(-2 * r)},0Z`;
+      if (!i) return disco;
+      const [px, py] = eje[i - 1];
+      const largoTramo = Math.hypot(x - px, y - py);
+      if (!largoTramo) return disco;
+      const [nx, ny] = [-(y - py) / largoTramo, (x - px) / largoTramo];
+      const q = radios[i - 1];
+      return `${disco}M${n(px + nx * q)},${n(py + ny * q)}L${n(x + nx * r)},${n(y + ny * r)}L${n(x - nx * r)},${n(y - ny * r)}L${n(px - nx * q)},${n(py - ny * q)}Z`;
+    })
+    .join("");
+}
+
+export const DURACION_SIMULACION = 16.5;
+
+/**
+ * Crecida ilustrativa a los `t` segundos: llueve en la cabecera, el río crece, el frente baja hasta
+ * la RN 9, la tormenta se retira y el río vuelve a su cauce. No usa datos de ninguna estación.
  */
 export function crecidaSimulada(t, eta) {
   const fraccion = t >= 2.4 ? suave(rampa(t, 2.4, 11.5)) : null;
   return {
     nivel: t < 2.4 ? "YELLOW" : t < 4.4 ? "ORANGE" : "RED",
     lluvia: rampa(t, 0.5, 3) * (1 - rampa(t, 9, 12.5)),
-    crecida: suave(rampa(t, 1.4, 5)),
+    crecida: suave(rampa(t, 1.4, 5)) * (1 - suave(rampa(t, 13.5, 16.3))),
     fraccion,
     restantes: fraccion == null ? null : eta * (1 - fraccion),
   };
@@ -131,6 +184,33 @@ function useSegundos(serie) {
     };
   }, [serie]);
   return serie == null ? 0 : t;
+}
+
+/** Acerca cada valor a su objetivo cuadro a cuadro, para que un cambio de nivel se vea crecer y no saltar. */
+function useSuaves(objetivos) {
+  const [valores, setValores] = useState(objetivos);
+  const actuales = useRef(objetivos);
+  const clave = objetivos.join();
+  useEffect(() => {
+    const metas = clave.split(",").map(Number);
+    const pendiente = () => actuales.current.some((v, i) => v !== metas[i]);
+    if (!pendiente()) return undefined;
+    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) {
+      actuales.current = metas;
+      setValores(metas);
+      return undefined;
+    }
+    let previo = performance.now();
+    let cuadro = requestAnimationFrame(function paso(ahora) {
+      const k = Math.min(1, (Math.max(0, ahora - previo) / 1000) * 2.5);
+      previo = ahora;
+      actuales.current = actuales.current.map((v, i) => (Math.abs(metas[i] - v) < 0.005 ? metas[i] : v + (metas[i] - v) * k));
+      setValores(actuales.current);
+      if (pendiente()) cuadro = requestAnimationFrame(paso);
+    });
+    return () => cancelAnimationFrame(cuadro);
+  }, [clave]);
+  return valores;
 }
 
 const BOTON =
@@ -235,7 +315,8 @@ export default function MapaCorredor({ cuencas = [] }) {
     const nivel = sim ? NIVELES[sim.nivel] : vivo ? NIVELES[vivo.nivel] : null;
     const orden = nivel?.orden ?? 0;
     const restantes = sim ? sim.restantes : vivo?.minutos_restantes;
-    const fraccion = sim ? sim.fraccion : restantes != null && eta > 0 ? 1 - restantes / eta : null;
+    const enCurso = vivo?.minutos_restantes != null && eta > 0;
+    const fraccion = sim ? sim.fraccion : enCurso ? 1 - restantes / eta : null;
     // Con el enlace principal caído, la lluvia vigente es la del último paquete de respaldo.
     const mm = emergenciaReciente(vivo?.nodo)?.rain_mm_15m ?? vivo?.nodo?.ultima?.metrics?.rain_mm_15m ?? 0;
     const lluvia = sim ? sim.lluvia : entre(mm / 20, 0, 1);
@@ -247,13 +328,17 @@ export default function MapaCorredor({ cuencas = [] }) {
       eta,
       restantes,
       lluvia: lluvia < 0.02 ? 0 : lluvia,
-      crecida: sim ? sim.crecida : fraccion != null ? 1 : [0, 0.35, 0.7, 1][orden],
+      // Cuánto debería estar crecido el río según el estado real; la simulación trae su propia curva.
+      meta: enCurso ? 1 : [0, 0.35, 0.7, 1][NIVELES[vivo?.nivel]?.orden ?? 0],
+      crecida: sim?.crecida,
+      fraccion,
       onda: fraccion != null ? avanceEnTramo(g.tramo, fraccion) : null,
       llegada: fraccion != null && fraccion >= 1,
       simulada: Boolean(sim),
       color: nivel?.color ?? NEUTRO,
     };
   });
+  const crecidas = useSuaves(capas.map(({ meta }) => meta));
   const km = [10, 5, 2, 1].find((d) => (d / corredor.km_px / ANCHO) * vista.k <= 0.26) ?? 1;
   const enFoco = capas.find(({ g }) => g.basin_id === foco);
 
@@ -355,9 +440,12 @@ export default function MapaCorredor({ cuencas = [] }) {
           </g>
 
           {/* Cauces con flujo animado hacia la ruta; la onda de crecida avanza con la cuenta regresiva */}
-          {capas.map(({ g, color, orden, onda, crecida, simulada }) => {
-            // Tramo crecido: de la naciente a la estación y, desde ahí, hasta donde llegó el frente.
-            const crecido = crecida > 0 ? `${g.cabecera}${onda ? `L${onda.trazo.slice(1)}` : ""}` : null;
+          {capas.map(({ g, color, orden, onda, fraccion, simulada, crecida: curva }, i) => {
+            const crecida = curva ?? crecidas[i];
+            // Río crecido: de la naciente a la estación y, desde ahí, hasta donde llegó el frente.
+            const cauce = EJES[g.basin_id];
+            const fin = cauce.estacion + entre(fraccion ?? 0, 0, 1) * (cauce.largo - cauce.estacion);
+            const crecido = crecida > 0.01 ? `${g.cabecera}${onda ? `L${onda.trazo.slice(1)}` : ""}` : null;
             return (
             <g key={g.basin_id} fill="none" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
               {orden >= 2 && (
@@ -367,9 +455,9 @@ export default function MapaCorredor({ cuencas = [] }) {
               <path d={g.cauce} stroke="#22d3ee" strokeOpacity="0.3" strokeWidth="5" vectorEffect="non-scaling-stroke" />
               <path d={g.cauce} stroke="#67e8f9" strokeWidth="1.8" vectorEffect="non-scaling-stroke" />
               {crecido && (
-                <g className={simulada ? "" : "corredor-crece"}>
-                  <path d={crecido} stroke={color} strokeOpacity="0.3" strokeWidth={5 + 13 * crecida} vectorEffect="non-scaling-stroke" className="corredor-latido" />
-                  <path d={crecido} stroke={color} strokeWidth={1.8 + 4.4 * crecida} vectorEffect="non-scaling-stroke" />
+                <g data-crecida={g.basin_id}>
+                  <path d={franja(cauce, crecida, fin, 2 + 5 * crecida)} fill={color} fillOpacity="0.32" className="corredor-latido" />
+                  <path d={franja(cauce, crecida, fin)} fill={color} />
                   <path d={crecido} stroke="#fff" strokeOpacity="0.85" strokeWidth={0.8 + 1.2 * crecida} vectorEffect="non-scaling-stroke" className="corredor-flujo" style={{ animationDuration: "0.45s" }} />
                 </g>
               )}
