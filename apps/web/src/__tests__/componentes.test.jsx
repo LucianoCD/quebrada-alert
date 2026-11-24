@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
-import Landing from "../Landing.jsx";
+import Landing, { TarjetaCuenca } from "../Landing.jsx";
 import corredor from "../assets/corredor.js";
 import MapaCorredor, {
   acotarVista,
@@ -161,6 +161,18 @@ describe("Componentes tácticos UI v2", () => {
     );
     expect(screen.getByText("31.2 mm LoRa")).toBeInTheDocument();
     expect(screen.getByText("+45 cm")).toBeInTheDocument();
+  });
+
+  it("TarjetaCuenca no anuncia estado normal para una cuenca que todavía no envió lecturas", () => {
+    const sinDatos = { basin_id: "CUENCA_HUASAMAYO", nivel: "GREEN", origen: "sin datos", minutos_restantes: null, nodo: { en_linea: false } };
+    render(
+      <MemoryRouter>
+        <TarjetaCuenca basinId="CUENCA_HUASAMAYO" nombre="Tilcara" rio="Río Huasamayo" cuenca={sinDatos} conectado />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Sin lecturas todavía/)).toBeInTheDocument();
+    expect(screen.queryByText(/Normal/)).toBeNull();
+    expect(screen.queryByText(/Sin señales de crecida/)).toBeNull();
   });
 
   it("MapaCorredor enlaza las cuatro cuencas y muestra la cuenta regresiva solo donde hay arribo pendiente", () => {

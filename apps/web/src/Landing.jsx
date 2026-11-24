@@ -45,11 +45,13 @@ function Dato({ etiqueta, children }) {
   );
 }
 
-function TarjetaCuenca({ basinId, nombre, rio, cuenca, conectado }) {
+export function TarjetaCuenca({ basinId, nombre, rio, cuenca, conectado }) {
   const nivel = cuenca ? NIVELES[cuenca.nivel] : null;
   const m = cuenca?.nodo.ultima?.metrics;
   const em = cuenca ? emergenciaReciente(cuenca.nodo) : null;
   const arribo = cuenca?.minutos_restantes != null ? cuenta(cuenca.minutos_restantes) : null;
+  // El backend arranca cada cuenca en verde antes de la primera lectura: eso no es un estado medido.
+  const sinLecturas = cuenca && !m && !em;
   const [IconoEnlace, enlace, colorEnlace] = ENLACES[estadoEnlace(cuenca?.nodo, cuenca?.origen)];
   return (
     <Link
@@ -61,7 +63,7 @@ function TarjetaCuenca({ basinId, nombre, rio, cuenca, conectado }) {
           <h3 className="text-base font-bold">{nombre}</h3>
           <div className="text-xs text-tinta-2">{rio}</div>
         </div>
-        {nivel && (
+        {nivel && !sinLecturas && (
           <span
             className="shrink-0 rounded-md px-2 py-0.5 text-[11px] font-bold text-sobre-nivel"
             style={{ background: nivel.color }}
@@ -71,7 +73,11 @@ function TarjetaCuenca({ basinId, nombre, rio, cuenca, conectado }) {
         )}
       </div>
 
-      {cuenca ? (
+      {sinLecturas ? (
+        <p className="mt-4 text-xs leading-relaxed text-tinta-2">
+          Sin lecturas todavía: la estación aún no envió datos.
+        </p>
+      ) : cuenca ? (
         <>
           <div className="mt-4 min-h-[3.25rem]">
             {arribo ? (
