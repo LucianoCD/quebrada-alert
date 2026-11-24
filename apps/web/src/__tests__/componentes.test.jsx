@@ -3,6 +3,17 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
 import Landing from "../Landing.jsx";
+import corredor from "../assets/corredor.js";
+import MapaCorredor, {
+  acotarVista,
+  ampliar,
+  avanceEnTramo,
+  crecidaSimulada,
+  DURACION_SIMULACION,
+  encuadre,
+  franja,
+  semiancho,
+} from "../MapaCorredor.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
 import { useUI } from "../store.js";
@@ -99,10 +110,6 @@ vi.mock("../MapaTactico.jsx", () => ({
   default: ({ seleccion }) => <div data-testid="mapa-tactico-mock" data-seleccion={seleccion} />,
 }));
 
-vi.mock("../EscenaCrecida.jsx", () => ({
-  default: () => <div data-testid="escena-crecida-mock" />,
-}));
-
 vi.mock("../hooks.js", () => ({
   json: vi.fn(),
   useEstado: () => ESTADO_MOCK,
@@ -154,6 +161,165 @@ describe("Componentes tácticos UI v2", () => {
     );
     expect(screen.getByText("31.2 mm LoRa")).toBeInTheDocument();
     expect(screen.getByText("+45 cm")).toBeInTheDocument();
+  });
+
+  it("MapaCorredor enlaza las cuatro cuencas y muestra la cuenta regresiva solo donde hay arribo pendiente", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    const enlaces = screen.getAllByRole("link");
+    expect(enlaces.map((e) => e.getAttribute("href"))).toEqual([
+      "/monitor?cuenca=CUENCA_ARROYO_MEDIO",
+      "/monitor?cuenca=CUENCA_TUMBAYA_GRANDE",
+      "/monitor?cuenca=CUENCA_PURMAMARCA",
+      "/monitor?cuenca=CUENCA_HUASAMAYO",
+    ]);
+    expect(enlaces[0]).toHaveTextContent("arribo en 31:30");
+    expect(enlaces[1]).toHaveTextContent("ETA ~79 min");
+    expect(screen.getAllByText(/arribo en/)).toHaveLength(CUENCAS_DEMO.filter((c) => c.minutos_restantes != null).length);
+  });
+
+  it("MapaCorredor se dibuja sin estado vivo con los tiempos orientativos de Kirpich", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[]} />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText(/ETA ~\d+ min/)).toHaveLength(4);
+    expect(screen.queryByText(/arribo en/)).not.toBeInTheDocument();
+  });
+
+  it("avanceEnTramo recorta el tramo estación-cruce según la fracción recorrida", () => {
+    const tramo = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ];
+    expect(avanceEnTramo(tramo, 0).punto).toEqual([0, 0]);
+    expect(avanceEnTramo(tramo, 0.25).punto).toEqual([5, 0]);
+    expect(avanceEnTramo(tramo, 0.75)).toEqual({ punto: [10, 5], trazo: "M0.0,0.0L10.0,0.0L10.0,5.0" });
+    expect(avanceEnTramo(tramo, 7).punto).toEqual([10, 10]);
+  });
+
+  it("MapaCorredor sigue sola la crecida real más severa y no ofrece la simulación mientras dura", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Siguiendo la crecida en Volcán");
+    expect(screen.queryByRole("button", { name: /Simular crecida/ })).not.toBeInTheDocument();
+    // Las etiquetas que quedan fuera del cuadro ampliado salen del orden de tabulación.
+    expect(screen.getByRole("link", { name: /Volcán/ })).not.toHaveClass("invisible");
+    expect(screen.getByRole("link", { name: /Tilcara/ })).toHaveClass("invisible");
+    // Vista ya acercada: se puede alejar y, al hacerlo, volver al zoom automático.
+    expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Alejar" }));
+    expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeEnabled();
+  });
+
+  it("MapaCorredor dibuja la lluvia del último paquete de respaldo cuando la telemetría quedó vieja", () => {
+    const volcan = CUENCAS_DEMO.find((c) => c.basin_id === "CUENCA_ARROYO_MEDIO");
+    const seca = { ...volcan.nodo.ultima, metrics: { ...volcan.nodo.ultima.metrics, rain_mm_15m: 0 } };
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[{ ...volcan, nodo: { ...volcan.nodo, ultima: seca } }]} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('[data-lluvia="CUENCA_ARROYO_MEDIO"]')).toHaveAttribute("opacity", "1");
+    rerender(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[{ ...volcan, nodo: { ...volcan.nodo, ultima: seca, ultima_emergencia: null } }]} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('[data-lluvia="CUENCA_ARROYO_MEDIO"]')).toBeNull();
+  });
+
+  it("MapaCorredor simula una crecida rotulada como ilustrativa y permite detenerla", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[]} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alejar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Simular crecida/ }));
+    expect(screen.getByRole("status")).toHaveTextContent("Simulación ilustrativa · no es un evento real");
+    expect(screen.getByRole("button", { name: "Alejar" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Detener/ }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("crecidaSimulada escala de nivel, hace bajar el frente hasta la RN 9 y termina sin lluvia", () => {
+    expect(crecidaSimulada(0, 52)).toMatchObject({ nivel: "YELLOW", lluvia: 0, crecida: 0, fraccion: null, restantes: null });
+    expect(crecidaSimulada(3, 52)).toMatchObject({ nivel: "ORANGE", lluvia: 1 });
+    const medio = crecidaSimulada(7, 52);
+    expect(medio.nivel).toBe("RED");
+    expect(medio.restantes).toBeCloseTo(52 * (1 - medio.fraccion));
+    expect(medio.crecida).toBe(1);
+    // Al final la tormenta se retiró y el río volvió a su cauce.
+    expect(crecidaSimulada(DURACION_SIMULACION, 52)).toMatchObject({ nivel: "RED", lluvia: 0, crecida: 0, fraccion: 1, restantes: 0 });
+  });
+
+  it("semiancho ensancha el río con la crecida y aguas abajo, y lo abulta detrás del frente", () => {
+    const rio = { largo: 300, estacion: 150, fin: 300 };
+    expect(semiancho(200, { ...rio, crecida: 1 })).toBeGreaterThan(2 * semiancho(200, { ...rio, crecida: 0.3 }));
+    expect(semiancho(200, { ...rio, crecida: 1 })).toBeGreaterThan(semiancho(60, { ...rio, crecida: 1 }));
+    expect(semiancho(286, { ...rio, crecida: 1 })).toBeGreaterThan(semiancho(200, { ...rio, crecida: 1 }));
+    // Sin crecida queda el cauce normal, y sin frente se afina hasta él en la estación.
+    expect(semiancho(200, { ...rio, crecida: 0 })).toBeCloseTo(1.2);
+    expect(semiancho(150, { ...rio, fin: 150, crecida: 1 })).toBeCloseTo(1.2);
+  });
+
+  it("franja dibuja el río crecido solo hasta donde llegó el frente", () => {
+    const rio = { puntos: [[0, 0, 0], [100, 0, 100], [200, 0, 200]], estacion: 100, largo: 200 };
+    const xs = (d) => d.match(/[ML](-?[\d.]+),/g).map((m) => Number(m.slice(1, -1)));
+    const media = franja(rio, 1, 150);
+    expect(media).not.toMatch(/NaN/);
+    expect(Math.max(...xs(media))).toBe(150);
+    expect(Math.max(...xs(franja(rio, 1, 200)))).toBe(200);
+    // Ni el agua ni su halo se adelantan al frente: el cruce no se tiñe antes del arribo.
+    const borde = (d) =>
+      Math.max(...[...d.matchAll(/M(-?[\d.]+),-?[\d.]+a([\d.]+),/g)].map(([, x, r]) => Number(x) + 2 * Number(r)));
+    for (const fin of [100, 150, 190]) {
+      expect(borde(franja(rio, 1, fin)), `agua a ${fin}`).toBeLessThan(fin + 1.5);
+      expect(borde(franja(rio, 1, fin, 7)), `halo a ${fin}`).toBeLessThan(fin + 1.5);
+    }
+  });
+
+  it("MapaCorredor dibuja el río crecido solo en las cuencas con alerta", () => {
+    const { container } = render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    const crecidas = [...container.querySelectorAll("[data-crecida]")].map((e) => e.dataset.crecida).sort();
+    expect(crecidas).toEqual(CUENCAS_DEMO.filter((c) => c.nivel !== "GREEN").map((c) => c.basin_id).sort());
+  });
+
+  it("ampliar y acotarVista no dejan ver fuera del mapa ni pasar los límites de zoom", () => {
+    const general = { k: 1, tx: 0, ty: 0 };
+    expect(ampliar(general, 1 / 1.5)).toEqual(general);
+    const cerca = ampliar(general, 2);
+    expect(cerca).toEqual({ k: 2, tx: -600, ty: -668.5 });
+    expect(acotarVista({ k: 2, tx: 500, ty: -5000 })).toEqual({ k: 2, tx: 0, ty: -1337 });
+    expect(ampliar(ampliar(cerca, 2), 2).k).toBe(4);
+    expect(ampliar(cerca, 0.5)).toEqual(general);
+  });
+
+  it("encuadre acerca la vista a cada cuenca dejando en cuadro la estación y el cruce con la RN 9", () => {
+    for (const g of corredor.cuencas) {
+      const { k, tx, ty } = encuadre(g);
+      expect(k, g.localidad).toBeGreaterThanOrEqual(1.2);
+      for (const [x, y] of [g.estacion, g.cruce]) {
+        expect(x * k + tx, g.localidad).toBeGreaterThan(0);
+        expect(x * k + tx, g.localidad).toBeLessThan(1200);
+        expect(y * k + ty, g.localidad).toBeGreaterThan(0);
+        expect(y * k + ty, g.localidad).toBeLessThan(1337);
+      }
+    }
   });
 
   it("ParteModal expone role=dialog, carga texto y cierra con Escape", async () => {

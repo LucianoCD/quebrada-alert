@@ -49,6 +49,7 @@ Monorepo organizado para trabajar en equipo con agentes. Reglas y comandos en
 | `apps/web/` | Tablero React + Vite + Tailwind + MapLibre GL / Deck.gl con la consola de crisis. |
 | `docs/data/` | GeoJSON y relieve que el backend sirve en `/datos`. |
 | `apps/api/scripts/preparar_geodatos.py` | Delimita las microcuencas y genera las capas de `docs/data/`. |
+| `apps/api/scripts/preparar_ilustracion.py` | Genera el relieve y las geometrías del mapa del landing (`apps/web/src/assets/`) desde el MDE y `docs/data/`. |
 | `tests/` | Tests del núcleo y de la API (pytest). |
 | `docs/` | Documentación para humanos; `api.md` resume contratos y endpoints. |
 | `cerebro/` | Memoria compartida: decisiones, estado, glosario y roadmap del equipo. |

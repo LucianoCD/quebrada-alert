@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { cuenta, emergenciaReciente, NIVELES } from "./niveles.js";
 import { useEstado } from "./hooks.js";
-import EscenaCrecida from "./EscenaCrecida.jsx";
+import MapaCorredor from "./MapaCorredor.jsx";
 
 const CUENCAS_LANDING = [
   ["CUENCA_ARROYO_MEDIO", "Volcán", "Arroyo del Medio"],
@@ -47,12 +47,9 @@ export default function Landing() {
             {conectado ? "● datos en vivo del servidor local" : "○ servidor no disponible"} · demostración con datos simulados
           </div>
         </div>
-        {/* Escena animada de crecida (canvas 2D; la versión 3D R3F es Fase 3 del spec) */}
-        <div className="relative h-[380px] flex-1 overflow-hidden rounded-2xl border border-slate-300 bg-[#0a1424] shadow-[0_0_80px_rgba(14,165,233,0.12)] lg:h-[480px]">
-          <EscenaCrecida />
-          <div className="absolute bottom-3 left-3 rounded-md border border-slate-300/70 bg-slate-100 px-2.5 py-1.5 text-[10px] text-slate-600 backdrop-blur-sm">
-            Crecida convectiva simulada · sección transversal del cauce
-          </div>
+        {/* Ilustración del corredor: relieve real con las cuatro cuencas, coloreadas por el estado en vivo */}
+        <div className="mx-auto w-full max-w-[540px] flex-1">
+          <MapaCorredor cuencas={estado.cuencas} />
         </div>
       </section>
 
