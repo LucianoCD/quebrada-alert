@@ -55,7 +55,8 @@ class Nodo:
         self.reloj = inicio or datetime.now(timezone.utc)
         ultima = self.db.execute("select max(ts) from lecturas").fetchone()[0]
         if ultima:  # al reanudar, el reloj no retrocede respecto de lo ya guardado
-            self.reloj = max(self.reloj, datetime.fromisoformat(ultima))
+            iso = f"{ultima[:-1]}+00:00" if ultima.endswith("Z") else ultima
+            self.reloj = max(self.reloj, datetime.fromisoformat(iso))
         self.estado = Estado(lluvia_previa_72h_mm=lluvia_previa_72h_mm)
         self.enlace_activo = True  # enlace principal (celular)
         self.respaldo_activo = True  # enlace de respaldo de corto alcance (LoRa)

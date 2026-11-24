@@ -2,11 +2,13 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
+import Landing from "../Landing.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
 import { useUI } from "../store.js";
 
-const { CUENCAS_DEMO, ESTADO_MOCK, FUENTES_MOCK, HISTORIA_MOCK, SIM_MOCK, SPARK_MOCK } = vi.hoisted(() => {
+const { CUENCAS_DEMO, ESTADO_MOCK, FUENTES_MOCK, HISTORIA_MOCK, LECTURAS_FUENTES_MOCK, SIM_MOCK, SPARK_MOCK } =
+  vi.hoisted(() => {
   const cuencas = [
     {
       basin_id: "CUENCA_TUMBAYA_GRANDE",
@@ -38,8 +40,15 @@ const { CUENCAS_DEMO, ESTADO_MOCK, FUENTES_MOCK, HISTORIA_MOCK, SIM_MOCK, SPARK_
         en_linea: false,
         huecos: 4,
         ultima: {
+          timestamp_utc: "2026-11-23T17:45:00Z",
           connectivity_state: "ISLAND_MODE",
           metrics: { rain_mm_15m: 28, water_level_cm: 95, battery_soc_pct: 88 },
+        },
+        ultima_emergencia: {
+          timestamp_utc: "2026-11-23T18:00:00Z",
+          rain_mm_15m: 31.2,
+          water_level_rise_15m_cm: 45,
+          edge_local_alert: "RED",
         },
       },
     },
@@ -67,6 +76,19 @@ const { CUENCAS_DEMO, ESTADO_MOCK, FUENTES_MOCK, HISTORIA_MOCK, SIM_MOCK, SPARK_
       lecturas_totales: 375,
       fuentes: [{ id: "snih", nombre: "SNIH — lluvia observada", ultima: { estado: "ok", nuevas: 12 } }],
     },
+    LECTURAS_FUENTES_MOCK: {
+      lecturas: [
+        {
+          fuente: "snih",
+          estacion_id: "280049",
+          variable: "precipitacion_mm",
+          ts: "2026-11-23T18:00:00+00:00",
+          valor: 14.5,
+          unidad: "mm",
+          origen: "observado",
+        },
+      ],
+    },
     SIM_MOCK: {},
     HISTORIA_MOCK: [],
     SPARK_MOCK: [20, 30, 50],
@@ -77,11 +99,16 @@ vi.mock("../MapaTactico.jsx", () => ({
   default: ({ seleccion }) => <div data-testid="mapa-tactico-mock" data-seleccion={seleccion} />,
 }));
 
+vi.mock("../EscenaCrecida.jsx", () => ({
+  default: () => <div data-testid="escena-crecida-mock" />,
+}));
+
 vi.mock("../hooks.js", () => ({
   json: vi.fn(),
   useEstado: () => ESTADO_MOCK,
   useSondeo: (url) => {
     if (url === "/api/fuentes") return FUENTES_MOCK;
+    if (url.startsWith("/api/fuentes/lecturas")) return LECTURAS_FUENTES_MOCK;
     if (url === "/api/simulador") return SIM_MOCK;
     return HISTORIA_MOCK;
   },
@@ -109,12 +136,24 @@ describe("Componentes tácticos UI v2", () => {
     expect(alVerParte).toHaveBeenCalledWith("CUENCA_ARROYO_MEDIO");
   });
 
-  it("BasinList ordena tarjetas por severidad descendente", () => {
+  it("BasinList ordena tarjetas por severidad descendente y prioriza emergencia LoRa reciente", () => {
     render(<BasinList cuencas={CUENCAS_DEMO} seleccion="CUENCA_ARROYO_MEDIO" alElegir={vi.fn()} />);
     const botones = screen.getAllByRole("button");
     expect(botones[0]).toHaveTextContent("Volcán");
+    expect(botones[0]).toHaveTextContent("31.2 mm LoRa");
+    expect(botones[0]).toHaveTextContent("+45 cm");
     expect(botones[1]).toHaveTextContent("Purmamarca");
     expect(botones[2]).toHaveTextContent("Tumbaya");
+  });
+
+  it("Landing muestra la emergencia LoRa más reciente cuando supera la última telemetría", () => {
+    render(
+      <MemoryRouter>
+        <Landing />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText("31.2 mm LoRa")).toBeInTheDocument();
+    expect(screen.getByText("+45 cm")).toBeInTheDocument();
   });
 
   it("ParteModal expone role=dialog, carga texto y cierra con Escape", async () => {
@@ -140,6 +179,7 @@ describe("Componentes tácticos UI v2", () => {
     expect(screen.getByTestId("mapa-tactico-mock")).toHaveAttribute("data-seleccion", "CUENCA_ARROYO_MEDIO");
     expect(screen.queryByText(/Consola de crisis \/ simulador/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Fuentes externas \(referencia\)/i)).toBeInTheDocument();
+    expect(screen.getByText(/14\.5 mm · 18:00:00 UTC/)).toBeInTheDocument();
 
     // Abre ParteModal y pulsa Escape: debe cerrar el modal pero conservar abierto el Inspector.
     fireEvent.click(screen.getByRole("button", { name: "Parte" }));

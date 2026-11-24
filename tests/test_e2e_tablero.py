@@ -1,4 +1,7 @@
-"""Pruebas extremo a extremo del bundle offline, WebSocket, parte de situación y resiliencia (Issue #7)."""
+"""Pruebas de integración backend ↔ bundle compilado del tablero (offline, /datos/*, API y WebSocket).
+
+No levanta navegador headless; el comportamiento de los componentes React se valida con Vitest en apps/web.
+"""
 
 from datetime import datetime, timezone
 

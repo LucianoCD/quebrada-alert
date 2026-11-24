@@ -14,7 +14,7 @@ Base: `http://127.0.0.1:8000`. El tablero usa proxy de Vite para `/api`,
 | Tópico | Payload | Efecto |
 |---|---|---|
 | `spBv1.0/QUEBRADA/NBIRTH/<nodo>` | `Nacimiento` | Registra nodo, keepalive y escala de tiempo. |
-| `spBv1.0/QUEBRADA/NDATA/<nodo>` | `Telemetria` | Guarda lectura `(node_id, seq)`; en vivo alimenta el semáforo (conservando episodios `NARANJA`/`ROJO` hasta `arribo_estimado + 5 min`); si es histórica, completa la serie y solo activa alerta si un pico `NARANJA`/`ROJO` recuperado tiene onda aún en tránsito (`ts + eta_min > ahora`). |
+| `spBv1.0/QUEBRADA/NDATA/<nodo>` | `Telemetria` | Guarda lectura `(node_id, seq)`; en vivo alimenta el semáforo (conservando episodios `NARANJA`/`ROJO` hasta `max(arribo_estimado, ultimo_critico + eta_min) + 5 min`); si es histórica, completa la serie, fusiona lotes consecutivos de un mismo corte en un único evento `RECUPERACION` y solo activa alerta si un pico recuperado tiene onda aún en tránsito (`ts + eta_min > ahora`). |
 
 Respuesta: `{"nuevas": n, "repetidas": n}`. `422` si el tópico no cumple `spBv1.0/QUEBRADA/<NBIRTH|NDATA>/<nodo>`, `payload.node_id` difiere del tópico, el payload no valida o la cuenca es desconocida.
 
@@ -51,7 +51,7 @@ vivo.
 
 | Endpoint | Devuelve |
 |---|---|
-| `GET /api/estado` | `{"cuencas": [...], "eventos": [...]}` — una entrada por cuenca con `nivel`, `origen`, `accion`, `eta_min`, `tc_min`, `arribo_estimado`, `minutos_restantes` y `nodo` (`en_linea`, `ultima`, `hora_estimada`, `escala`, `recuperadas`, `huecos`). Más los últimos eventos. |
+| `GET /api/estado` | `{"cuencas": [...], "eventos": [...]}` — una entrada por cuenca con `nivel`, `origen`, `accion`, `eta_min`, `tc_min`, `arribo_estimado`, `minutos_restantes` y `nodo` (`en_linea`, `ultima`, `ultima_emergencia`, `hora_estimada`, `escala`, `recuperadas`, `huecos`). Más los últimos eventos. |
 | `GET /api/historia/{node_id}?limite=2000` | Serie de lecturas `{seq, ts, is_historical, rain_mm_15m, rain_mm_60m, water_level_cm, turbidity_proxy_ntu, edge_local_alert}` ordenada por `seq` (`limite` validado `1..10000`, `422` si está fuera de rango). |
 | `GET /api/parte/{basin_id}` | `text/plain` — parte de situación para organismos (lleva leyenda de demo). `404` si la cuenca no existe. |
 | `GET /api/simulador` | Estado de los nodos simulados (solo demo; requiere `QUEBRADA_NODOS`). |
@@ -70,9 +70,10 @@ vivo.
 La API sincroniza periódicamente (y también a demanda) fuentes documentadas en
 `docs/fuentes_datos_quebrada_alert.md`. Las lecturas viven en tablas DuckDB
 `fuente_lectura` / `fuente_sincronizacion` y **no** se mezclan con la telemetría
-de los nodos simulados ni disparan el semáforo. Las corridas de pronóstico
-(`PRONOSTICO`) actualizan el valor ante conflicto de clave cuando cambia la
-estimación horaria; el scheduler aplica backoff exponencial tras errores.
+de los nodos simulados ni disparan el semáforo. Las corridas de pronóstico,
+reanalisis y observaciones (`PRONOSTICO`, `REANALISIS`, `OBSERVADO`) actualizan el
+valor ante conflicto de clave cuando cambia la serie publicada; el scheduler
+aplica backoff exponencial tras errores.
 
 | Fuente | Qué guarda | Intervalo por defecto |
 |---|---|---|
@@ -97,6 +98,7 @@ Variables de entorno: `QUEBRADA_FUENTES_AUTO` (`0` desactiva el scheduler),
   transmisión en vivo (se muestra distinto en el tablero).
 - `minutos_restantes` puede ser `null` (cuenca en verde o sin arribo fijado).
 - `nivel` usa los valores `GREEN|YELLOW|ORANGE|RED`; `origen` distingue
-  telemetría en vivo de paquete de emergencia.
+  telemetría en vivo de paquete de emergencia (`nodo.ultima_emergencia` aporta
+  lluvia y ascenso LoRa cuando es más reciente que `nodo.ultima`).
 - El semáforo se define en `hydrology.clasificar` — si el tablero necesita
   anticipar color, replicar esa función, no inventar otra.

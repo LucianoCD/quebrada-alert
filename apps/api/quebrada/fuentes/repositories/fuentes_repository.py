@@ -7,7 +7,7 @@ from datetime import datetime, timezone
 
 import duckdb
 
-from quebrada.fuentes.models import FuenteId, LecturaExterna, OrigenLectura, ResultadoSincronizacion
+from quebrada.fuentes.models import FuenteId, LecturaExterna, ResultadoSincronizacion
 
 ESQUEMA = """
 create table if not exists fuente_lectura (
@@ -71,28 +71,27 @@ class FuentesRepository:
             if insertada:
                 nuevas += 1
             else:
-                if lectura.origen is OrigenLectura.PRONOSTICO:
-                    self.db.execute(
-                        """
-                        update fuente_lectura
-                        set valor = ?, unidad = ?, lat = ?, lon = ?, meta = ?, recibido = now()
-                        where fuente = ? and estacion_id = ? and variable = ? and ts = ? and origen = ?
-                          and valor is distinct from ?
-                        """,
-                        [
-                            lectura.valor,
-                            lectura.unidad,
-                            lectura.lat,
-                            lectura.lon,
-                            json.dumps(lectura.meta, ensure_ascii=False),
-                            lectura.fuente.value,
-                            lectura.estacion_id,
-                            lectura.variable,
-                            lectura.ts,
-                            lectura.origen.value,
-                            lectura.valor,
-                        ],
-                    )
+                self.db.execute(
+                    """
+                    update fuente_lectura
+                    set valor = ?, unidad = ?, lat = ?, lon = ?, meta = ?, recibido = now()
+                    where fuente = ? and estacion_id = ? and variable = ? and ts = ? and origen = ?
+                      and valor is distinct from ?
+                    """,
+                    [
+                        lectura.valor,
+                        lectura.unidad,
+                        lectura.lat,
+                        lectura.lon,
+                        json.dumps(lectura.meta, ensure_ascii=False),
+                        lectura.fuente.value,
+                        lectura.estacion_id,
+                        lectura.variable,
+                        lectura.ts,
+                        lectura.origen.value,
+                        lectura.valor,
+                    ],
+                )
                 repetidas += 1
         return nuevas, repetidas
 

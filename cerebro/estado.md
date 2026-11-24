@@ -26,10 +26,12 @@ actualizado: 2026-11-23
   (`quebrada/fuentes`: controller–service–repository): SNIH 280049/10040 +
   Open-Meteo forecast/archive; endpoints `/api/fuentes*`; tablas
   `fuente_lectura` / `fuente_sincronizacion` (capa de referencia, sin mezclar
-  con nodos), upsert de pronósticos en conflicto y backoff exponencial ante
-  errores (PR #9 + endurecimiento). Ver [[fuentes-datos]] y `docs/api.md`.
-- Suite de pruebas de frontend (Vitest + Testing Library) y verificación E2E
-  offline (`tests/test_e2e_tablero.py`) integradas en CI (`.github/workflows/ci.yml`).
+  con nodos), upsert en conflicto ante valores revisados para todas las fuentes y
+  backoff exponencial ante errores (PR #9 + endurecimiento). Ver [[fuentes-datos]] y
+  `docs/api.md`.
+- Suite de pruebas de frontend (Vitest + Testing Library) y verificación offline
+  backend ↔ bundle compilado (`tests/test_e2e_tablero.py`) integradas en CI
+  (`.github/workflows/ci.yml`, matriz Python 3.10/3.11 + Node 22).
 
 ## En curso
 
@@ -82,3 +84,11 @@ actualizado: 2026-11-23
   emergencias LoRa (M1), reemisión tras volver a verde en corte (M2),
   persistencia `nodos_meta` en DuckDB (M3), actualización de pronósticos (M4)
   y backoff exponencial en `FuentesScheduler` (ver [[decisiones]]).
+- 2026-11-23 — Tercera auditoría resuelta (N1–N7 y UI M1/M5): reparación de
+  `apps/web/package-lock.json` (`@emnapi/core`/`@emnapi/runtime` para `npm ci`
+  en CI), parseo ISO `"Z"` compatible con Python 3.10 + matriz `3.10`/`3.11`,
+  extensión de retención por `ultimo_critico`, persistencia `cuencas_meta` en
+  DuckDB, fusión de eventos `RECUPERACION` multilote, upsert para todas las
+  fuentes externas (`SNIH`/ERA5/Forecast), exposición de `ultima_emergencia`
+  y últimas precipitaciones `/api/fuentes/lecturas` en tarjetas/Inspector, y
+  aclaración del alcance sin navegador en `tests/test_e2e_tablero.py`.

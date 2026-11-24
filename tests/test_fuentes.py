@@ -278,3 +278,26 @@ def test_scheduler_aplica_backoff_exponencial_tras_error():
     assert len(llamadas) == 3 * len(FuenteId)
     assert scheduler._fallos == {}
     assert scheduler._siguiente_reintento == {}
+
+
+def test_n7_snih_y_era5_actualizan_valor_revisado():
+    db = duckdb.connect(":memory:")
+    repo = FuentesRepository(db)
+    ts = datetime(2026, 11, 23, 18, 0, tzinfo=timezone.utc)
+    for fuente, est, origen, v_ini, v_rev in [
+        (FuenteId.SNIH, "280049", OrigenLectura.OBSERVADO, 1.0, 5.5),
+        (FuenteId.OPEN_METEO_ARCHIVE, "EST-VOLCAN-CAB01", OrigenLectura.REANALISIS, 2.0, 7.5),
+    ]:
+        inicial = LecturaExterna(
+            fuente=fuente,
+            estacion_id=est,
+            variable="precipitacion_mm",
+            ts=ts,
+            valor=v_ini,
+            origen=origen,
+        )
+        revisada = inicial.model_copy(update={"valor": v_rev})
+        assert repo.guardar_lecturas([inicial]) == (1, 0)
+        assert repo.guardar_lecturas([revisada]) == (0, 1)
+        assert repo.contar_lecturas(fuente) == 1
+        assert repo.listar_lecturas(fuente=fuente)[0]["valor"] == v_rev

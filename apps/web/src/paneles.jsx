@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { cuenta, ESCENARIOS, estadoEnlace, hora, NIVELES } from "./niveles.js";
+import { cuenta, emergenciaReciente, ESCENARIOS, estadoEnlace, hora, NIVELES } from "./niveles.js";
 import { json, useSparkline, useSondeo } from "./hooks.js";
 import { useUI } from "./store.js";
 
@@ -109,6 +109,7 @@ function estadoEnlaceLocal(cuenca) {
 function TarjetaCuenca({ cuenca, activa, alElegir }) {
   const nivel = NIVELES[cuenca.nivel];
   const m = cuenca.nodo.ultima?.metrics;
+  const em = emergenciaReciente(cuenca.nodo);
   const restante = cuenta(cuenca.minutos_restantes);
   const puntos = useSparkline(cuenca.nodo.node_id);
   const enlace = estadoEnlaceLocal(cuenca);
@@ -141,8 +142,8 @@ function TarjetaCuenca({ cuenca, activa, alElegir }) {
         </div>
       )}
       <div className="tabular mt-2 grid grid-cols-3 gap-1 text-[11px] text-slate-700">
-        <span>{m ? `${m.rain_mm_15m} mm` : "—"}</span>
-        <span>{m ? `${m.water_level_cm} cm` : "—"}</span>
+        <span>{em ? `${em.rain_mm_15m} mm LoRa` : m ? `${m.rain_mm_15m} mm` : "—"}</span>
+        <span>{em ? `+${em.water_level_rise_15m_cm} cm` : m ? `${m.water_level_cm} cm` : "—"}</span>
         <span>{m ? `${m.battery_soc_pct}% bat` : "—"}</span>
       </div>
       <Sparkline puntos={puntos} />
@@ -239,6 +240,18 @@ function PestanaHidrologia({ cuenca, alVerParte }) {
   const nodeId = cuenca.nodo.node_id;
   const historia = useSondeo(`/api/historia/${nodeId}?limite=400`, 1500, []);
   const fuentes = useSondeo("/api/fuentes", 30000, null);
+  const lecturasFuentes = useSondeo("/api/fuentes/lecturas?limite=30", 30000, null);
+  const ultimaLecturaPorFuente = useMemo(() => {
+    const lista = lecturasFuentes?.lecturas ?? [];
+    const mapa = new Map();
+    for (const r of lista) {
+      const prev = mapa.get(r.fuente);
+      if (!prev || (r.estacion_id === nodeId && prev.estacion_id !== nodeId)) {
+        mapa.set(r.fuente, r);
+      }
+    }
+    return mapa;
+  }, [lecturasFuentes, nodeId]);
   const { eventoResaltado } = useUI();
   return (
     <div className="space-y-3">
@@ -268,22 +281,32 @@ function PestanaHidrologia({ cuenca, alVerParte }) {
             <span className="tabular font-semibold">{fuentes.lecturas_totales ?? 0} reg.</span>
           </div>
           <ul className="space-y-1">
-            {fuentes.fuentes.map((f) => (
-              <li key={f.id} className="flex items-center justify-between gap-2 text-slate-700">
-                <span className="truncate">{f.nombre}</span>
-                <span
-                  className={`shrink-0 font-mono text-[10px] ${
-                    f.ultima?.estado === "ok"
-                      ? "text-emerald-700"
-                      : f.ultima?.estado === "error"
-                        ? "text-rose-700"
-                        : "text-slate-500"
-                  }`}
-                >
-                  {f.ultima ? `${f.ultima.estado} (${f.ultima.nuevas})` : "pendiente"}
-                </span>
-              </li>
-            ))}
+            {fuentes.fuentes.map((f) => {
+              const ult = ultimaLecturaPorFuente.get(f.id);
+              return (
+                <li key={f.id} className="flex items-center justify-between gap-2 text-slate-700">
+                  <div className="min-w-0">
+                    <div className="truncate">{f.nombre}</div>
+                    {ult && (
+                      <div className="tabular font-mono text-[10px] text-slate-600">
+                        Última: {ult.valor} {ult.unidad ?? "mm"} · {hora(ult.ts)} UTC
+                      </div>
+                    )}
+                  </div>
+                  <span
+                    className={`shrink-0 font-mono text-[10px] ${
+                      f.ultima?.estado === "ok"
+                        ? "text-emerald-700"
+                        : f.ultima?.estado === "error"
+                          ? "text-rose-700"
+                          : "text-slate-500"
+                    }`}
+                  >
+                    {f.ultima ? `${f.ultima.estado} (${f.ultima.nuevas})` : "pendiente"}
+                  </span>
+                </li>
+              );
+            })}
           </ul>
           <div className="mt-1.5 text-[10px] text-slate-500">
             Capa de referencia (SNIH / Open-Meteo) — no dispara el semáforo táctico.

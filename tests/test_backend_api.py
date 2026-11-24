@@ -6,8 +6,9 @@ import pytest
 from fastapi.testclient import TestClient
 from quebrada import cuencas
 from quebrada.backend.app import crear_app, puertos_nodos
-from quebrada.backend.motor import MARGEN_ARRIBO_MIN, Motor
-from quebrada.schemas import Emergencia, Mensaje, Metricas, Nacimiento, Nivel
+from quebrada.backend.motor import MARGEN_ARRIBO_MIN, Motor, _parse_iso
+from quebrada.edge.nodo import Nodo
+from quebrada.schemas import Emergencia, Mensaje, Metricas, Nacimiento, Nivel, Telemetria
 
 NODO, CUENCA = "EST-VOLCAN-CAB01", "CUENCA_ARROYO_MEDIO"
 INICIO = datetime(2026, 1, 15, 18, 0, tzinfo=timezone.utc)
@@ -291,3 +292,150 @@ def test_historia_limite_negativo_devuelve_422():
     with TestClient(crear_app(":memory:", fuentes_auto=False)) as cliente:
         assert cliente.get(f"/api/historia/{NODO}?limite=-1").status_code == 422
         assert cliente.get(f"/api/historia/{NODO}?limite=0").status_code == 422
+
+
+def test_n2_parseo_iso_con_sufijo_z(tmp_path):
+    assert _parse_iso("2026-01-15T18:00:00Z") == INICIO
+    ruta_sqlite = str(tmp_path / "edge_z.sqlite")
+    nodo_a = Nodo(NODO, CUENCA, ruta_sqlite, lambda m: False, inicio=INICIO)
+    nodo_a.db.execute(
+        "insert into lecturas (seq, ts, lluvia_mm, nivel_cm, carga) values (?, ?, ?, ?, ?)",
+        (0, "2026-01-15T18:10:00Z", 0.0, 20.0, "{}"),
+    )
+    nodo_a.db.commit()
+    nodo_a.db.close()
+
+    nodo_b = Nodo(NODO, CUENCA, ruta_sqlite, lambda m: False, inicio=INICIO)
+    assert nodo_b.reloj == INICIO + timedelta(minutes=10)
+    nodo_b.db.close()
+
+    motor = Motor()
+    motor.procesar([Mensaje(**_ndata(0, INICIO, rain_mm_15m=1.0))])
+    motor.emergencia(
+        Emergencia(
+            node_id=NODO,
+            basin_id=CUENCA,
+            seq=1,
+            timestamp_utc=INICIO + timedelta(minutes=5),
+            edge_local_alert=Nivel.NARANJA,
+            rain_mm_15m=18.5,
+            water_level_rise_15m_cm=26.0,
+        )
+    )
+    cuenca = next(c for c in motor.resumen()["cuencas"] if c["basin_id"] == CUENCA)
+    assert cuenca["nodo"]["ultima_emergencia"]["rain_mm_15m"] == 18.5
+    assert "18.5 mm en 15 min" in motor.parte(CUENCA)
+
+
+def test_n3_segundo_pulso_extiende_retencion_sin_reiniciar_arribo():
+    motor = Motor()
+    eta = motor.cuencas[CUENCA].eta_min
+    motor.procesar([Mensaje(**_ndata(0, INICIO, rain_mm_15m=30.0, water_level_rise_15m_cm=45.0))])
+    arribo_inicial = motor.estado[CUENCA].arribo_estimado
+    assert motor.estado[CUENCA].nivel == Nivel.ROJO
+    assert arribo_inicial == INICIO + timedelta(minutes=eta)
+
+    # Cesa brevemente, pero llega un segundo pulso crítico a los 35 min.
+    motor.procesar([Mensaje(**_ndata(1, INICIO + timedelta(minutes=20), rain_mm_15m=0.0))])
+    pulso2 = INICIO + timedelta(minutes=35)
+    motor.procesar([Mensaje(**_ndata(2, pulso2, rain_mm_15m=18.0, water_level_rise_15m_cm=22.0))])
+    assert motor.estado[CUENCA].arribo_estimado == arribo_inicial
+    assert motor.estado[CUENCA].ultimo_critico == pulso2
+
+    # Vencida la ventana de la primera onda, la segunda todavía retiene la alerta activa.
+    tras_onda1 = arribo_inicial + timedelta(minutes=MARGEN_ARRIBO_MIN + 1)
+    motor.procesar([Mensaje(**_ndata(3, tras_onda1, rain_mm_15m=0.0))])
+    assert motor.estado[CUENCA].nivel == Nivel.ROJO
+
+    # Recién después de vencer la onda del segundo pulso se habilita el descenso.
+    tras_onda2 = pulso2 + timedelta(minutes=eta + MARGEN_ARRIBO_MIN + 1)
+    motor.procesar([Mensaje(**_ndata(4, tras_onda2, rain_mm_15m=0.0))])
+    assert motor.estado[CUENCA].nivel == Nivel.VERDE
+    assert motor.estado[CUENCA].arribo_estimado is None
+    assert motor.estado[CUENCA].ultimo_critico is None
+
+
+def test_n4_reinicio_conserva_arribo_de_recuperacion(tmp_path):
+    ruta = str(tmp_path / "rec_meta.duckdb")
+    reloj = [0.0]
+    motor1 = Motor(ruta, reloj=lambda: reloj[0])
+
+    def _msg_hist(seq: int, minutos: int, r15: float, nivel: Nivel) -> Mensaje:
+        ts = INICIO + timedelta(minutes=minutos)
+        return Mensaje(
+            topic=f"spBv1.0/QUEBRADA/NDATA/{NODO}",
+            payload=Telemetria(
+                node_id=NODO,
+                basin_id=CUENCA,
+                seq=seq,
+                timestamp_utc=ts,
+                is_historical=True,
+                metrics=Metricas(
+                    rain_mm_15m=r15,
+                    rain_mm_60m=r15,
+                    antecedent_rain_72h_mm=0.0,
+                    water_level_cm=40.0,
+                    water_level_rise_15m_cm=25.0,
+                    turbidity_proxy_ntu=80.0,
+                    battery_soc_pct=90.0,
+                ),
+                edge_local_alert=nivel,
+            ).model_dump(mode="json"),
+        )
+
+    motor1.procesar(
+        [
+            _msg_hist(0, 5, 16.0, Nivel.NARANJA),
+            _msg_hist(1, 10, 30.0, Nivel.ROJO),
+            _msg_hist(2, 25, 17.0, Nivel.NARANJA),
+        ]
+    )
+    arribo_orig = motor1.estado[CUENCA].arribo_estimado
+    ultimo_orig = motor1.estado[CUENCA].ultimo_critico
+    eta = motor1.cuencas[CUENCA].eta_min
+    assert arribo_orig == INICIO + timedelta(minutes=5 + eta)
+    assert ultimo_orig == INICIO + timedelta(minutes=25)
+    motor1.db.close()
+
+    motor2 = Motor(ruta)
+    assert motor2.estado[CUENCA].nivel == Nivel.ROJO
+    assert motor2.estado[CUENCA].arribo_estimado == arribo_orig
+    assert motor2.estado[CUENCA].ultimo_critico == ultimo_orig
+    motor2.db.close()
+
+
+def test_n5_recuperacion_multilote_fusiona_evento_unico():
+    motor = Motor()
+
+    def _hist(seq: int, minutos: int, r15: float = 0.0) -> Mensaje:
+        return Mensaje(**_ndata(seq, INICIO + timedelta(minutes=minutos), is_historical=True, rain_mm_15m=r15))
+
+    def _rec_eventos() -> list[dict]:
+        return [e for e in motor.eventos(50, CUENCA) if e["tipo"] == "RECUPERACION"]
+
+    motor.procesar(
+        [
+            Mensaje(
+                topic=f"spBv1.0/QUEBRADA/NBIRTH/{NODO}",
+                payload=Nacimiento(
+                    node_id=NODO, basin_id=CUENCA, bd_seq=0, timestamp_utc=INICIO, keepalive_s=60.0
+                ).model_dump(mode="json"),
+            ),
+            _hist(1, 2),
+            _hist(2, 4),
+            _hist(3, 6),
+        ]
+    )
+    motor.procesar([_hist(4, 8, r15=18.0), _hist(5, 10), _hist(6, 12)])
+    motor.procesar([_hist(7, 14), Mensaje(**_ndata(8, INICIO + timedelta(minutes=16), is_historical=False))])
+
+    evs = _rec_eventos()
+    assert len(evs) == 1
+    assert "7 lecturas recuperadas del búfer local (seq 1 a 7)" in evs[0]["detalle"]
+    assert "Onda aún en camino a la RN 9: alerta activa." in evs[0]["detalle"]
+
+    # Un corte posterior inicia una nueva sesión de recuperación sin fusionarse con la anterior.
+    motor.procesar([_hist(9, 120), _hist(10, 122)])
+    evs2 = _rec_eventos()
+    assert len(evs2) == 2
+    assert "2 lecturas recuperadas del búfer local (seq 9 a 10)" in evs2[0]["detalle"]

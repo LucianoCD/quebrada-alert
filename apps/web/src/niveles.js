@@ -66,3 +66,13 @@ export function estadoEnlace(nodo, origen) {
   if (estado === "ISLAND_MODE") return "lora";
   return "offline";
 }
+
+/** Devuelve `ultima_emergencia` cuando existe y es más reciente que `ultima`. */
+export function emergenciaReciente(nodo) {
+  const em = nodo?.ultima_emergencia;
+  if (!em) return null;
+  if (!nodo?.ultima?.timestamp_utc) return em;
+  const tsEm = Date.parse(em.timestamp_utc);
+  const tsUlt = Date.parse(nodo.ultima.timestamp_utc);
+  return Number.isFinite(tsEm) && Number.isFinite(tsUlt) ? (tsEm >= tsUlt ? em : null) : em;
+}

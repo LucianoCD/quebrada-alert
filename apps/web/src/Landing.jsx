@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { cuenta, NIVELES } from "./niveles.js";
+import { cuenta, emergenciaReciente, NIVELES } from "./niveles.js";
 import { useEstado } from "./hooks.js";
 import EscenaCrecida from "./EscenaCrecida.jsx";
 
@@ -64,6 +64,7 @@ export default function Landing() {
             const c = porId.get(basinId);
             const nivel = c ? NIVELES[c.nivel] : null;
             const m = c?.nodo.ultima?.metrics;
+            const em = c ? emergenciaReciente(c.nodo) : null;
             return (
               <Link
                 key={basinId}
@@ -92,12 +93,12 @@ export default function Landing() {
                     </span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Nivel</span>
-                    <span>{m ? `${m.water_level_cm} cm` : "—"}</span>
+                    <span>{em ? "Ascenso LoRa" : "Nivel"}</span>
+                    <span>{em ? `+${em.water_level_rise_15m_cm} cm` : m ? `${m.water_level_cm} cm` : "—"}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span>Lluvia 15 min</span>
-                    <span>{m ? `${m.rain_mm_15m} mm` : "—"}</span>
+                    <span>{em ? "Lluvia LoRa" : "Lluvia 15 min"}</span>
+                    <span>{em ? `${em.rain_mm_15m} mm LoRa` : m ? `${m.rain_mm_15m} mm` : "—"}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Enlace</span>

@@ -16,6 +16,12 @@ from quebrada.schemas import Conectividad, Emergencia, Mensaje, Metricas, Nacimi
 
 MARGEN_ARRIBO_MIN = 5.0
 
+
+def _parse_iso(valor: str) -> datetime:
+    """Parsea ISO 8601 soportando sufijo 'Z' en Python 3.10."""
+    return datetime.fromisoformat(f"{valor[:-1]}+00:00" if valor.endswith("Z") else valor)
+
+
 ESQUEMA = """
 create table if not exists telemetria (
     node_id varchar, basin_id varchar, seq bigint, ts timestamptz, is_historical boolean,
@@ -30,6 +36,9 @@ create table if not exists eventos (
 );
 create table if not exists nodos_meta (
     node_id varchar primary key, basin_id varchar, keepalive_s double, escala double, en_linea boolean
+);
+create table if not exists cuencas_meta (
+    basin_id varchar primary key, arribo_estimado timestamptz, ultimo_critico timestamptz
 );
 """
 
@@ -47,7 +56,16 @@ class EstadoNodo:
     reloj_visto: float = 0.0
     ultima: dict | None = None
     ultima_emergencia: dict | None = None
+    ultima_emergencia_ts: datetime | None = None
     recuperadas: int = 0
+    _rec_evento_id: int | None = None
+    _rec_ts: datetime | None = None
+    _rec_total: int = 0
+    _rec_seq_min: int | None = None
+    _rec_seq_max: int | None = None
+    _rec_peor_nivel: Nivel | None = None
+    _rec_peor_ts: datetime | None = None
+    _rec_alerta_activa: bool = False
 
 
 @dataclass
@@ -57,6 +75,7 @@ class EstadoCuenca:
     origen: str = "sin datos"  # telemetría en vivo o paquete de emergencia
     desde: datetime | None = None
     arribo_estimado: datetime | None = None
+    ultimo_critico: datetime | None = None
     eventos: list = field(default_factory=list)
 
 
@@ -73,7 +92,13 @@ class Motor:
         consulta = "select basin_id, nivel, ts, origen from eventos where tipo in ('ALERTA', 'DESCENSO') order by id"
         for basin_id, nivel, ts, origen in self.db.execute(consulta).fetchall():
             if basin_id in self.estado:
-                self._transicion(basin_id, Nivel(nivel), ts, origen)
+                self._transicion(basin_id, Nivel(nivel), ts, origen, persistir=False)
+        for basin_id, arribo_estimado, ultimo_critico in self.db.execute(
+            "select basin_id, arribo_estimado, ultimo_critico from cuencas_meta"
+        ).fetchall():
+            if basin_id in self.estado and self.estado[basin_id].nivel.orden >= Nivel.NARANJA.orden:
+                self.estado[basin_id].arribo_estimado = arribo_estimado
+                self.estado[basin_id].ultimo_critico = ultimo_critico
         self._restaurar_nodos()
 
     def _restaurar_nodos(self) -> None:
@@ -141,6 +166,22 @@ class Motor:
             [nodo.node_id, nodo.basin_id, nodo.keepalive_s, nodo.escala, nodo.en_linea],
         )
 
+    def _guardar_meta_cuenca(self, e: EstadoCuenca) -> None:
+        self.db.execute(
+            "insert or replace into cuencas_meta values (?, ?, ?)",
+            [e.basin_id, e.arribo_estimado, e.ultimo_critico],
+        )
+
+    def _reiniciar_recuperacion(self, nodo: EstadoNodo) -> None:
+        nodo._rec_evento_id = None
+        nodo._rec_ts = None
+        nodo._rec_total = 0
+        nodo._rec_seq_min = None
+        nodo._rec_seq_max = None
+        nodo._rec_peor_nivel = None
+        nodo._rec_peor_ts = None
+        nodo._rec_alerta_activa = False
+
     # --- entrada --------------------------------------------------------------------------
 
     def procesar(self, mensajes: list[Mensaje]) -> dict:
@@ -149,7 +190,10 @@ class Motor:
         recuperadas: dict[str, list[Telemetria]] = {}
         for m in mensajes:
             if m.tipo == "NBIRTH":
-                self._nacimiento(Nacimiento(**m.payload))
+                nacimiento = Nacimiento(**m.payload)
+                if pendientes := recuperadas.pop(nacimiento.node_id, None):
+                    self._recuperacion(self.nodos[nacimiento.node_id], pendientes)
+                self._nacimiento(nacimiento)
             elif m.tipo == "NDATA":
                 lectura = Telemetria(**m.payload)
                 nodo = self._nodo(lectura.node_id, lectura.basin_id)
@@ -162,6 +206,8 @@ class Motor:
                 if lectura.is_historical:
                     recuperadas.setdefault(lectura.node_id, []).append(lectura)
                 else:
+                    if pendientes := recuperadas.pop(lectura.node_id, None):
+                        self._recuperacion(nodo, pendientes)
                     self._en_vivo(nodo, lectura)
             else:
                 raise ValueError(f"Tipo de mensaje no admitido: {m.tipo}")
@@ -173,10 +219,12 @@ class Motor:
         """Paquete del enlace de respaldo: sube el semáforo aunque el enlace principal esté caído."""
         nodo = self._nodo(paquete.node_id, paquete.basin_id)
         self._marcar(nodo, paquete.timestamp_utc)
-        if nodo.ultima_emergencia is None or paquete.timestamp_utc >= datetime.fromisoformat(
-            nodo.ultima_emergencia["timestamp_utc"]
-        ):
+        ts_em = nodo.ultima_emergencia_ts or (
+            _parse_iso(nodo.ultima_emergencia["timestamp_utc"]) if nodo.ultima_emergencia else None
+        )
+        if ts_em is None or paquete.timestamp_utc >= ts_em:
             nodo.ultima_emergencia = paquete.model_dump(mode="json")
+            nodo.ultima_emergencia_ts = paquete.timestamp_utc
         detalle = (
             f"Paquete de emergencia LoRa: {paquete.rain_mm_15m:.1f} mm "
             f"y ascenso de {paquete.water_level_rise_15m_cm:.0f} cm en 15 min"
@@ -197,6 +245,7 @@ class Motor:
         for nodo in self.nodos.values():
             if nodo.en_linea and self.reloj() - nodo.visto > nodo.keepalive_s:
                 nodo.en_linea = False
+                self._reiniciar_recuperacion(nodo)
                 self._guardar_meta_nodo(nodo)
                 caidos.append(nodo.node_id)
                 self._evento(self.hora_estimada(nodo), nodo.basin_id, nodo.node_id, "NDEATH", None, "servidor",
@@ -218,6 +267,7 @@ class Motor:
         nodo = self._nodo(n.node_id, n.basin_id)
         self._marcar(nodo, n.timestamp_utc)
         nodo.keepalive_s, nodo.escala, nodo.visto = n.keepalive_s, n.time_scale, self.reloj()
+        self._reiniciar_recuperacion(nodo)
         if not nodo.en_linea:
             nodo.en_linea = True
             self._evento(n.timestamp_utc, n.basin_id, n.node_id, "NBIRTH", None, "nodo", "Nodo en línea")
@@ -255,10 +305,13 @@ class Motor:
                 x.timestamp_utc, x.basin_id, x.node_id, "EN_LINEA", None, "nodo", "El nodo volvió a transmitir"
             )
         nodo.en_linea, nodo.ultimo_ts, nodo.ultima = True, x.timestamp_utc, x.model_dump(mode="json")
-        if nodo.ultima_emergencia and x.timestamp_utc >= datetime.fromisoformat(
-            nodo.ultima_emergencia["timestamp_utc"]
-        ):
+        self._reiniciar_recuperacion(nodo)
+        ts_em = nodo.ultima_emergencia_ts or (
+            _parse_iso(nodo.ultima_emergencia["timestamp_utc"]) if nodo.ultima_emergencia else None
+        )
+        if ts_em is not None and x.timestamp_utc >= ts_em:
             nodo.ultima_emergencia = None
+            nodo.ultima_emergencia_ts = None
         if not estaba_en_linea:
             self._guardar_meta_nodo(nodo)
         # El servidor recalcula el semáforo con las mismas reglas que el nodo.
@@ -286,6 +339,7 @@ class Motor:
         ]
         if recientes:
             primera, _ = recientes[0]
+            ultima_rec, _ = recientes[-1]
             peor_rec, nivel_rec = max(recientes, key=lambda par: par[1].orden)
             detalle_alerta = (
                 f"Pico {nivel_rec.name} recuperado del corte ({peor_rec.timestamp_utc:%H:%M} UTC): "
@@ -301,16 +355,34 @@ class Motor:
                 detalle_alerta,
                 solo_subir=True,
                 arribo_desde=primera.timestamp_utc,
+                ultimo_critico_ts=ultima_rec.timestamp_utc,
             )
-            cierre = "Onda aún en camino a la RN 9: alerta activa."
-        else:
-            cierre = "No genera alerta."
-        detalle = (
-            f"{len(ordenadas)} lecturas recuperadas del búfer local (seq {ordenadas[0].seq} a {ordenadas[-1].seq}); "
-            f"nivel local máximo durante el corte: {nivel_peor.name} a las "
-            f"{peor.timestamp_utc:%H:%M} UTC. {cierre}"
+
+        nodo._rec_total += len(ordenadas)
+        seq_min, seq_max = ordenadas[0].seq, ordenadas[-1].seq
+        nodo._rec_seq_min = seq_min if nodo._rec_seq_min is None else min(nodo._rec_seq_min, seq_min)
+        nodo._rec_seq_max = seq_max if nodo._rec_seq_max is None else max(nodo._rec_seq_max, seq_max)
+        if nodo._rec_peor_nivel is None or nivel_peor.orden > nodo._rec_peor_nivel.orden:
+            nodo._rec_peor_nivel = nivel_peor
+            nodo._rec_peor_ts = peor.timestamp_utc
+        nodo._rec_alerta_activa = nodo._rec_alerta_activa or bool(recientes)
+        nodo._rec_ts = (
+            ordenadas[-1].timestamp_utc if nodo._rec_ts is None else max(nodo._rec_ts, ordenadas[-1].timestamp_utc)
         )
-        self._evento(ordenadas[-1].timestamp_utc, nodo.basin_id, nodo.node_id, "RECUPERACION", None, "nodo", detalle)
+        cierre = "Onda aún en camino a la RN 9: alerta activa." if nodo._rec_alerta_activa else "No genera alerta."
+        detalle = (
+            f"{nodo._rec_total} lecturas recuperadas del búfer local (seq {nodo._rec_seq_min} a {nodo._rec_seq_max}); "
+            f"nivel local máximo durante el corte: {nodo._rec_peor_nivel.name} a las "
+            f"{nodo._rec_peor_ts:%H:%M} UTC. {cierre}"
+        )
+        if nodo._rec_evento_id is None:
+            self._evento(nodo._rec_ts, nodo.basin_id, nodo.node_id, "RECUPERACION", None, "nodo", detalle)
+            nodo._rec_evento_id = self._id
+        else:
+            self.db.execute(
+                "update eventos set ts = ?, detalle = ? where id = ?",
+                [nodo._rec_ts, detalle, nodo._rec_evento_id],
+            )
 
     def _nivel(
         self,
@@ -322,14 +394,26 @@ class Motor:
         detalle: str,
         solo_subir: bool = False,
         arribo_desde: datetime | None = None,
+        ultimo_critico_ts: datetime | None = None,
     ) -> None:
         e = self.estado[basin_id]
+        eta = timedelta(minutes=self.cuencas[basin_id].eta_min)
+        critico_ts = ultimo_critico_ts or ts
+        if e.nivel.orden >= Nivel.NARANJA.orden and nivel.orden >= Nivel.NARANJA.orden:
+            if e.ultimo_critico is None or critico_ts > e.ultimo_critico:
+                e.ultimo_critico = critico_ts
+                self._guardar_meta_cuenca(e)
+        ref_arribo = e.arribo_estimado
+        if e.ultimo_critico is not None:
+            fin_ultimo = e.ultimo_critico + eta
+            if ref_arribo is None or fin_ultimo > ref_arribo:
+                ref_arribo = fin_ultimo
         retener_episodio = (
             not solo_subir
             and nivel.orden < e.nivel.orden
             and e.nivel.orden >= Nivel.NARANJA.orden
-            and e.arribo_estimado is not None
-            and ts < e.arribo_estimado + timedelta(minutes=MARGEN_ARRIBO_MIN)
+            and ref_arribo is not None
+            and ts < ref_arribo + timedelta(minutes=MARGEN_ARRIBO_MIN)
         )
         if retener_episodio:
             return
@@ -338,7 +422,14 @@ class Motor:
                 e.origen = origen
             return
         sube = nivel.orden > e.nivel.orden
-        self._transicion(basin_id, nivel, ts, origen, arribo_desde=arribo_desde)
+        self._transicion(
+            basin_id,
+            nivel,
+            ts,
+            origen,
+            arribo_desde=arribo_desde,
+            ultimo_critico_ts=ultimo_critico_ts,
+        )
         self._evento(ts, basin_id, node_id, "ALERTA" if sube else "DESCENSO", nivel, origen, detalle)
 
     def _transicion(
@@ -348,14 +439,20 @@ class Motor:
         ts: datetime,
         origen: str,
         arribo_desde: datetime | None = None,
+        ultimo_critico_ts: datetime | None = None,
+        persistir: bool = True,
     ) -> None:
         e = self.estado[basin_id]
         critico, era_critico = nivel.orden >= Nivel.NARANJA.orden, e.nivel.orden >= Nivel.NARANJA.orden
         if critico and not era_critico:
             e.arribo_estimado = (arribo_desde or ts) + timedelta(minutes=self.cuencas[basin_id].eta_min)
+            e.ultimo_critico = ultimo_critico_ts or ts
         elif not critico:
             e.arribo_estimado = None
+            e.ultimo_critico = None
         e.nivel, e.origen, e.desde = nivel, origen, ts
+        if persistir:
+            self._guardar_meta_cuenca(e)
 
     def _evento(self, ts, basin_id, node_id, tipo, nivel: Nivel | None, origen, detalle) -> None:
         self._id += 1
@@ -412,6 +509,7 @@ class Motor:
                 "minutos_restantes": round(restante, 1) if restante is not None else None,
                 "nodo": {
                     "node_id": nodo.node_id, "en_linea": nodo.en_linea, "ultima": nodo.ultima,
+                    "ultima_emergencia": nodo.ultima_emergencia,
                     "hora_estimada": ahora.isoformat() if ahora else None, "escala": nodo.escala,
                     "recuperadas": nodo.recuperadas, "huecos": self.huecos(nodo.node_id),
                 },
@@ -424,8 +522,8 @@ class Motor:
         nodo = self.nodos[c.node_id]
         m = (nodo.ultima or {}).get("metrics", {})
         em = nodo.ultima_emergencia
-        ts_ultima = datetime.fromisoformat(nodo.ultima["timestamp_utc"]) if nodo.ultima else None
-        ts_em = datetime.fromisoformat(em["timestamp_utc"]) if em else None
+        ts_ultima = _parse_iso(nodo.ultima["timestamp_utc"]) if nodo.ultima else None
+        ts_em = nodo.ultima_emergencia_ts or (_parse_iso(em["timestamp_utc"]) if em else None)
         emergencia_mas_reciente = em is not None and (ts_ultima is None or (ts_em is not None and ts_em >= ts_ultima))
         ultima_vieja_en_emergencia = (
             e.origen == "emergencia" and ts_ultima is not None and e.desde is not None and ts_ultima < e.desde

@@ -126,3 +126,25 @@ Ver [[modelo-negocio]] y `docs/modelo-negocio-quebrada-alert.md`.
   - El tablero divide chunks de `maplibre-gl` y `@deck.gl` en `vite.config.js`,
     muestra `/api/fuentes` como capa de referencia en el Inspector y está
     cubierto por Vitest (`apps/web`) y `tests/test_e2e_tablero.py` en CI.
+- **Endurecimiento operativo e integridad UI/CI (2026-11-23, N1–N7 y UI M1/M5)**:
+  - **Lockfile multiplataforma (`N1`)**: `apps/web/package-lock.json` conserva las
+    dependencias opcionales `@emnapi/core` y `@emnapi/runtime` (`2.0.0-beta.2`)
+    requeridas por `@rolldown/binding-wasm32-wasi` para que `npm ci` no falle en CI.
+  - **Compatibilidad Python 3.10 (`N2`)**: `_parse_iso` en `motor.py` y el
+    arranque de `edge/nodo.py` normalizan sufijos `"Z"` antes de
+    `datetime.fromisoformat`, respaldado por matriz `["3.10", "3.11"]` en CI.
+  - **Pulsos múltiples, reinicio y recuperación multilote (`N3`–`N5`)**:
+    `EstadoCuenca.ultimo_critico` extiende el piso de retención hasta
+    `max(arribo_estimado, ultimo_critico + eta) + MARGEN_ARRIBO_MIN` sin mover
+    el `arribo_estimado` del frente inicial; DuckDB persiste ambos en
+    `cuencas_meta`; y `Motor._recuperacion` fusiona lotes históricos
+    consecutivos de un mismo corte en un único evento `RECUPERACION`.
+  - **Upsert unificado en fuentes y claridad E2E (`N6`–`N7`)**:
+    `FuentesRepository.guardar_lecturas` actualiza `valor` en conflicto para
+    todos los orígenes (`OBSERVADO`, `REANALISIS`, `PRONOSTICO`), y
+    `tests/test_e2e_tablero.py` documenta que verifica bundle/API/WS offline sin
+    navegador headless.
+  - **Emergencia LoRa y precipitaciones en UI (`M1`/`M5`)**: `Motor.resumen`
+    expone `nodo.ultima_emergencia` (priorizada en `TarjetaCuenca` y `Landing`
+    cuando supera a `ultima`), y `PestanaHidrologia` consulta
+    `/api/fuentes/lecturas?limite=30` para mostrar último valor y hora UTC.
