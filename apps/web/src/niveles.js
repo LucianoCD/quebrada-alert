@@ -76,6 +76,12 @@ export function hora(iso) {
   return Number.isFinite(t) ? RELOJ_LOCAL.format(t) : "--:--:--";
 }
 
+/** El nodo antepone la hora UTC a cada línea de su registro; se muestra en hora local como el resto. */
+export function registroLocal(linea) {
+  const p = /^(\d{2}):(\d{2}):(\d{2})(?= )/.exec(linea);
+  return p ? RELOJ_LOCAL.format(Date.UTC(2000, 0, 1, +p[1], +p[2], +p[3])) + linea.slice(8) : linea;
+}
+
 export function cuenta(minutos) {
   if (minutos == null) return null;
   if (minutos <= 0) return "00:00";

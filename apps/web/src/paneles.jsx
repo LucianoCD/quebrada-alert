@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { cuenta, emergenciaReciente, ESCENARIOS, estadoEnlace, hora, NIVELES } from "./niveles.js";
+import { cuenta, emergenciaReciente, ESCENARIOS, estadoEnlace, hora, NIVELES, registroLocal } from "./niveles.js";
 import { json, useSparkline, useSondeo } from "./hooks.js";
 import InterruptorTema from "./InterruptorTema.jsx";
 import { useUI } from "./store.js";
@@ -352,7 +352,7 @@ function PestañaNodo({ cuenca, simulador }) {
       <div>
         <div className="mb-1 text-[10px] uppercase tracking-wide text-tinta-2">Registro del nodo</div>
         <pre className="tabular max-h-36 overflow-y-auto rounded bg-hundida p-2 text-[10px] leading-4 text-verde">
-          {sim.registro?.length ? sim.registro.join("\n") : "Sin novedades."}
+          {sim.registro?.length ? sim.registro.map(registroLocal).join("\n") : "Sin novedades."}
         </pre>
       </div>
     </div>
@@ -573,7 +573,7 @@ export function ConsolaSimulador({ simulador }) {
         </div>
       </div>
       <pre className="tabular max-h-24 overflow-y-auto rounded bg-hundida p-2 text-[10px] leading-4 text-verde">
-        {sim.registro?.length ? sim.registro.slice(-12).join("\n") : "Sin novedades."}
+        {sim.registro?.length ? sim.registro.slice(-12).map(registroLocal).join("\n") : "Sin novedades."}
       </pre>
     </div>
   );
