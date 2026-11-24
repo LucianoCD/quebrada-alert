@@ -9,4 +9,30 @@ export default defineConfig({
   server: {
     proxy: { "/api": backend, "/datos": backend, "/ws": { target: backend, ws: true } },
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (id.includes("node_modules/maplibre-gl") || id.includes("node_modules\\maplibre-gl")) return "maplibre";
+          if (
+            id.includes("node_modules/@deck.gl") ||
+            id.includes("node_modules\\@deck.gl") ||
+            id.includes("node_modules/@luma.gl") ||
+            id.includes("node_modules\\@luma.gl") ||
+            id.includes("node_modules/@loaders.gl") ||
+            id.includes("node_modules\\@loaders.gl")
+          ) {
+            return "deckgl";
+          }
+          if (id.includes("node_modules")) return "vendor";
+          return undefined;
+        },
+      },
+    },
+  },
+  test: {
+    environment: "jsdom",
+    globals: true,
+    setupFiles: "./src/__tests__/setup.js",
+  },
 });

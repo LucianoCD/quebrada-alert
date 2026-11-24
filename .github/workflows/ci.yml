@@ -29,4 +29,20 @@ jobs:
         with:
           node-version: "22"
       - run: npm ci
+      - run: npm test
       - run: npm run build
+
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: pip install -e ".[dev]"
+      - run: npm ci && npm run build
+        working-directory: apps/web
+      - run: pytest tests/test_e2e_tablero.py -q
