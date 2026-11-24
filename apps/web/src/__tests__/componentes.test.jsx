@@ -3,6 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
 import Landing from "../Landing.jsx";
+import MapaCorredor, { avanceEnTramo } from "../MapaCorredor.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
 import { useUI } from "../store.js";
@@ -99,10 +100,6 @@ vi.mock("../MapaTactico.jsx", () => ({
   default: ({ seleccion }) => <div data-testid="mapa-tactico-mock" data-seleccion={seleccion} />,
 }));
 
-vi.mock("../EscenaCrecida.jsx", () => ({
-  default: () => <div data-testid="escena-crecida-mock" />,
-}));
-
 vi.mock("../hooks.js", () => ({
   json: vi.fn(),
   useEstado: () => ESTADO_MOCK,
@@ -154,6 +151,46 @@ describe("Componentes tácticos UI v2", () => {
     );
     expect(screen.getByText("31.2 mm LoRa")).toBeInTheDocument();
     expect(screen.getByText("+45 cm")).toBeInTheDocument();
+  });
+
+  it("MapaCorredor enlaza las cuatro cuencas y muestra la cuenta regresiva solo donde hay arribo pendiente", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    const enlaces = screen.getAllByRole("link");
+    expect(enlaces.map((e) => e.getAttribute("href"))).toEqual([
+      "/monitor?cuenca=CUENCA_ARROYO_MEDIO",
+      "/monitor?cuenca=CUENCA_TUMBAYA_GRANDE",
+      "/monitor?cuenca=CUENCA_PURMAMARCA",
+      "/monitor?cuenca=CUENCA_HUASAMAYO",
+    ]);
+    expect(enlaces[0]).toHaveTextContent("arribo en 31:30");
+    expect(enlaces[1]).toHaveTextContent("ETA ~79 min");
+    expect(screen.getAllByText(/arribo en/)).toHaveLength(CUENCAS_DEMO.filter((c) => c.minutos_restantes != null).length);
+  });
+
+  it("MapaCorredor se dibuja sin estado vivo con los tiempos orientativos de Kirpich", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[]} />
+      </MemoryRouter>,
+    );
+    expect(screen.getAllByText(/ETA ~\d+ min/)).toHaveLength(4);
+    expect(screen.queryByText(/arribo en/)).not.toBeInTheDocument();
+  });
+
+  it("avanceEnTramo recorta el tramo estación-cruce según la fracción recorrida", () => {
+    const tramo = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+    ];
+    expect(avanceEnTramo(tramo, 0).punto).toEqual([0, 0]);
+    expect(avanceEnTramo(tramo, 0.25).punto).toEqual([5, 0]);
+    expect(avanceEnTramo(tramo, 0.75)).toEqual({ punto: [10, 5], trazo: "M0.0,0.0L10.0,0.0L10.0,5.0" });
+    expect(avanceEnTramo(tramo, 7).punto).toEqual([10, 10]);
   });
 
   it("ParteModal expone role=dialog, carga texto y cierra con Escape", async () => {
