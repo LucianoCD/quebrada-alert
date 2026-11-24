@@ -3,7 +3,15 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
 import Landing from "../Landing.jsx";
-import MapaCorredor, { acotarVista, ampliar, avanceEnTramo, crecidaSimulada, DURACION_SIMULACION } from "../MapaCorredor.jsx";
+import corredor from "../assets/corredor.js";
+import MapaCorredor, {
+  acotarVista,
+  ampliar,
+  avanceEnTramo,
+  crecidaSimulada,
+  DURACION_SIMULACION,
+  encuadre,
+} from "../MapaCorredor.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
 import { useUI } from "../store.js";
@@ -239,6 +247,19 @@ describe("Componentes tácticos UI v2", () => {
     expect(acotarVista({ k: 2, tx: 500, ty: -5000 })).toEqual({ k: 2, tx: 0, ty: -1337 });
     expect(ampliar(ampliar(cerca, 2), 2).k).toBe(4);
     expect(ampliar(cerca, 0.5)).toEqual(general);
+  });
+
+  it("encuadre acerca la vista a cada cuenca dejando en cuadro la estación y el cruce con la RN 9", () => {
+    for (const g of corredor.cuencas) {
+      const { k, tx, ty } = encuadre(g);
+      expect(k, g.localidad).toBeGreaterThanOrEqual(1.2);
+      for (const [x, y] of [g.estacion, g.cruce]) {
+        expect(x * k + tx, g.localidad).toBeGreaterThan(0);
+        expect(x * k + tx, g.localidad).toBeLessThan(1200);
+        expect(y * k + ty, g.localidad).toBeGreaterThan(0);
+        expect(y * k + ty, g.localidad).toBeLessThan(1337);
+      }
+    }
   });
 
   it("ParteModal expone role=dialog, carga texto y cierra con Escape", async () => {

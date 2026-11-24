@@ -63,32 +63,38 @@ export function ampliar(vista, factor) {
   return acotarVista({ k, tx: ANCHO / 2 - cx * k, ty: ALTO / 2 - cy * k });
 }
 
-function caja(g) {
-  const n = g.contorno.match(/-?\d+(\.\d+)?/g).map(Number);
+/** Caja [x0, y0, x1, y1] de una lista plana de coordenadas x, y, x, y… */
+function caja(n) {
   const xs = n.filter((_, i) => i % 2 === 0);
   const ys = n.filter((_, i) => i % 2 === 1);
   return [Math.min(...xs), Math.min(...ys), Math.max(...xs), Math.max(...ys)];
 }
 
-/** Mayor acercamiento en el que entran la cuenca, su cruce con la RN 9 y su etiqueta. */
+/**
+ * Mayor acercamiento en el que entran la cuenca, su cruce con la RN 9 y su etiqueta. Si la cuenca
+ * es demasiado ancha para ampliarla entera, encuadra el tramo que recorre la crecida.
+ */
 export function encuadre(g) {
   const et = ETIQUETAS[g.basin_id];
-  const [x0, y0, x1, y1] = CAJAS[g.basin_id];
-  for (let k = 3; k > 1; k -= 0.05) {
-    // La etiqueta mide lo mismo en pantalla con cualquier zoom: ocupa menos mapa cuanto más se amplía.
-    const [ancho, medio] = [640 / k, 80 / k];
-    const izq = Math.min(x0, g.cruce[0], et.lado === "derecha" ? et.x : et.x - ancho);
-    const der = Math.max(x1, g.cruce[0], et.lado === "derecha" ? et.x + ancho : et.x);
-    const arr = Math.min(y0, et.y - medio);
-    const aba = Math.max(y1, et.y + medio);
-    if ((der - izq) * k <= ANCHO * 0.94 && (aba - arr) * k <= ALTO * 0.78) {
-      return acotarVista({ k, tx: ANCHO / 2 - ((izq + der) / 2) * k, ty: ALTO * 0.53 - ((arr + aba) / 2) * k });
+  for (const [x0, y0, x1, y1] of [CAJAS[g.basin_id], caja(g.tramo.flat())]) {
+    for (let k = 3; k >= 1.2; k -= 0.05) {
+      // La etiqueta mide lo mismo en pantalla con cualquier zoom: ocupa menos mapa cuanto más se amplía.
+      const [ancho, medio] = [640 / k, 80 / k];
+      const izq = Math.min(x0, g.cruce[0], et.lado === "derecha" ? et.x : et.x - ancho);
+      const der = Math.max(x1, g.cruce[0], et.lado === "derecha" ? et.x + ancho : et.x);
+      const arr = Math.min(y0, et.y - medio);
+      const aba = Math.max(y1, et.y + medio);
+      if ((der - izq) * k <= ANCHO * 0.94 && (aba - arr) * k <= ALTO * 0.78) {
+        return acotarVista({ k, tx: ANCHO / 2 - ((izq + der) / 2) * k, ty: ALTO * 0.53 - ((arr + aba) / 2) * k });
+      }
     }
   }
   return GENERAL;
 }
 
-const CAJAS = Object.fromEntries(corredor.cuencas.map((g) => [g.basin_id, caja(g)]));
+const CAJAS = Object.fromEntries(
+  corredor.cuencas.map((g) => [g.basin_id, caja(g.contorno.match(/-?\d+(\.\d+)?/g).map(Number))]),
+);
 const ENCUADRES = Object.fromEntries(corredor.cuencas.map((g) => [g.basin_id, encuadre(g)]));
 const iguales = (a, b) => a && b && a.k === b.k && a.tx === b.tx && a.ty === b.ty;
 
