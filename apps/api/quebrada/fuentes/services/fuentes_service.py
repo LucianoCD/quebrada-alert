@@ -83,7 +83,7 @@ class FuentesService:
                 estado="error",
                 nuevas=0,
                 repetidas=0,
-                detalle=str(error),
+                detalle=f"{type(error).__name__}: {error}" if str(error) else type(error).__name__,
                 iniciado=iniciado,
                 finalizado=datetime.now(timezone.utc),
             )
