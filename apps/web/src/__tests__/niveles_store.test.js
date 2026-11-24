@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cuenta, ESCENARIOS, estadoEnlace, NIVELES } from "../niveles.js";
+import { cuenta, ESCENARIOS, estadoEnlace, hora, NIVELES, registroLocal } from "../niveles.js";
 import { useUI } from "../store.js";
 
 describe("niveles.js", () => {
@@ -15,6 +15,16 @@ describe("niveles.js", () => {
     expect(cuenta(null)).toBeNull();
     expect(cuenta(-1)).toBe("00:00");
     expect(cuenta(12.5)).toBe("12:30");
+  });
+
+  it("muestra la hora local de Jujuy (UTC-3), también al cruzar la medianoche", () => {
+    expect(hora("2026-11-23T18:00:00Z")).toBe("15:00:00");
+    expect(hora("2026-01-10T02:05:09+00:00")).toBe("23:05:09");
+    expect(hora(null)).toBe("--:--:--");
+    expect(hora("no es una fecha")).toBe("--:--:--");
+    expect(registroLocal("04:10:16 Alerta autónoma ROJO")).toBe("01:10:16 Alerta autónoma ROJO");
+    expect(registroLocal("02:05:09 Enlace restablecido")).toBe("23:05:09 Enlace restablecido");
+    expect(registroLocal("Sin novedades.")).toBe("Sin novedades.");
   });
 
   it("distingue online, lora y offline en estadoEnlace", () => {

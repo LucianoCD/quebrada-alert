@@ -5,23 +5,83 @@
 @import "@fontsource/jetbrains-mono/400.css";
 @import "@fontsource/jetbrains-mono/700.css";
 
-/* Tokens UI/UX — tema claro tipo dashboard de mapa (referencia Pinterest/Dribbble) */
+/*
+ * Tokens semánticos. Noche (por defecto): basalto y arena de la Quebrada; Día: papel cálido para
+ * exteriores. Los pares texto/fondo se comprueban contra WCAG AA en __tests__/tema.test.js.
+ */
 :root {
-  --canvas: #eef2f7;
-  --surface: rgba(255, 255, 255, 0.88);
-  --elevated: #ffffff;
-  --border: rgba(15, 23, 42, 0.12);
-  --text: #0f172a;
-  --text-2: #475569;
-  --verde: #059669;
-  --amarillo: #d97706;
-  --naranja: #ea580c;
-  --rojo: #dc2626;
-  --telemetria: #0891b2;
-  --recuperado: #7c3aed;
-  --lora: #b45309;
+  color-scheme: dark;
+  --lienzo: #0b101b;
+  --superficie: rgb(17 24 39 / 0.82);
+  --elevada: #1a2231;
+  --hundida: rgb(255 255 255 / 0.05);
+  --realce: rgb(255 255 255 / 0.09);
+  --realce-fuerte: rgb(255 255 255 / 0.16);
+  --borde: rgb(255 255 255 / 0.08);
+  --borde-fuerte: rgb(255 255 255 / 0.22);
+  --tinta: #f5f0e8;
+  --tinta-2: #c2b8a6;
+  --tinta-3: #aba292;
+  --agua: #38d2ec;
+  --ocre: #e0a84a;
+  --verde: #34d399;
+  --amarillo: #fbbf24;
+  --naranja: #fb923c;
+  --rojo: #fb8585;
+  --recuperado: #b39dfb;
+  --lora: #fbbf24;
+  /* Texto sobre los rellenos de nivel (#10B981, #F59E0B, #F97316, #EF4444), iguales en ambos temas. */
+  --sobre-nivel: #0b101b;
+  --sombra: 0 10px 34px rgb(0 0 0 / 0.45);
   --fuente-ui: "Inter", system-ui, sans-serif;
   --fuente-datos: "JetBrains Mono", ui-monospace, monospace;
+}
+
+:root[data-tema="dia"] {
+  color-scheme: light;
+  --lienzo: #f2ece2;
+  --superficie: rgb(255 252 247 / 0.9);
+  --elevada: #ffffff;
+  --hundida: rgb(60 45 20 / 0.06);
+  --realce: rgb(60 45 20 / 0.1);
+  --realce-fuerte: rgb(60 45 20 / 0.18);
+  --borde: rgb(60 45 20 / 0.14);
+  --borde-fuerte: rgb(60 45 20 / 0.32);
+  --tinta: #1c1917;
+  --tinta-2: #4a443c;
+  --tinta-3: #5f584e;
+  --agua: #0b6379;
+  --ocre: #7c5109;
+  --verde: #036149;
+  --amarillo: #7c5109;
+  --naranja: #a8380b;
+  --rojo: #b01c1c;
+  --recuperado: #6226c9;
+  --lora: #8a3c0d;
+  --sombra: 0 10px 30px rgb(60 45 20 / 0.14);
+}
+
+@theme inline {
+  --color-lienzo: var(--lienzo);
+  --color-superficie: var(--superficie);
+  --color-elevada: var(--elevada);
+  --color-hundida: var(--hundida);
+  --color-realce: var(--realce);
+  --color-realce-fuerte: var(--realce-fuerte);
+  --color-borde: var(--borde);
+  --color-borde-fuerte: var(--borde-fuerte);
+  --color-tinta: var(--tinta);
+  --color-tinta-2: var(--tinta-2);
+  --color-tinta-3: var(--tinta-3);
+  --color-agua: var(--agua);
+  --color-ocre: var(--ocre);
+  --color-verde: var(--verde);
+  --color-amarillo: var(--amarillo);
+  --color-naranja: var(--naranja);
+  --color-rojo: var(--rojo);
+  --color-recuperado: var(--recuperado);
+  --color-lora: var(--lora);
+  --color-sobre-nivel: var(--sobre-nivel);
 }
 
 html,
@@ -29,10 +89,16 @@ body,
 #root {
   height: 100%;
   margin: 0;
-  background: var(--canvas);
-  color: var(--text);
+  background: var(--lienzo);
+  color: var(--tinta);
   font-family: var(--fuente-ui);
   font-variant-numeric: tabular-nums;
+}
+
+body {
+  transition:
+    background-color 0.25s ease-out,
+    color 0.25s ease-out;
 }
 
 .tabular {
@@ -40,19 +106,40 @@ body,
   font-variant-numeric: tabular-nums;
 }
 
-/* Panel blanco translúcido del Centro de Comando */
+/* Superficie flotante: paneles del monitor y tarjetas de la landing */
 .panel-crisis {
-  background: var(--surface);
-  border: 1px solid var(--border);
+  background: var(--superficie);
+  border: 1px solid var(--borde);
   border-radius: 12px;
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  box-shadow: 0 8px 30px rgba(15, 23, 42, 0.12);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  box-shadow: var(--sombra);
+}
+
+/* Acción dominante de cada pantalla */
+.boton-primario {
+  background: var(--agua);
+  color: var(--lienzo);
+  font-weight: 700;
+  transition:
+    filter 0.2s ease-out,
+    transform 0.2s ease-out;
+}
+.boton-primario:hover {
+  filter: brightness(1.1);
+}
+.boton-primario:active {
+  transform: translateY(1px);
+}
+
+:focus-visible {
+  outline: 2px solid var(--agua);
+  outline-offset: 2px;
 }
 
 /* Borde de advertencia cuando el simulador de crisis está activo */
 .modo-simulador {
-  outline: 2px solid rgba(217, 119, 6, 0.6);
+  outline: 2px solid color-mix(in srgb, var(--amarillo) 60%, transparent);
   outline-offset: -2px;
 }
 
@@ -62,7 +149,7 @@ body,
   height: 8px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(15, 23, 42, 0.2);
+  background: var(--realce-fuerte);
   border-radius: 4px;
 }
 *::-webkit-scrollbar-track {
@@ -71,11 +158,24 @@ body,
 
 /* Atribución de MapLibre discreta */
 .maplibregl-ctrl-attrib {
-  background: rgba(255, 255, 255, 0.85) !important;
+  background: var(--superficie) !important;
+  color: var(--tinta-2) !important;
   font-size: 9px !important;
 }
 .maplibregl-ctrl-attrib a {
-  color: #64748b !important;
+  color: var(--tinta-2) !important;
+}
+
+/* Estado de carga: bloque con pulso lento */
+@keyframes esqueleto {
+  50% {
+    opacity: 0.45;
+  }
+}
+.esqueleto {
+  border-radius: 6px;
+  background: var(--realce);
+  animation: esqueleto 1.8s ease-in-out infinite;
 }
 
 /* Impresión del Parte de Situación: solo el contenido del parte */
@@ -172,8 +272,13 @@ body,
   .corredor-flujo,
   .corredor-pulso,
   .corredor-latido,
-  .corredor-llueve {
+  .corredor-llueve,
+  .esqueleto {
     animation: none;
+  }
+
+  body {
+    transition: none;
   }
 
   .corredor-vista,

@@ -6,26 +6,53 @@ import workerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?url";
 import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { cuenta, estadoEnlace, NIVELES } from "./niveles.js";
+import { useTema } from "./tema.js";
 
 // MapLibre procesa fuentes en un web worker; sin URL explícita el bundle no lo encuentra.
 setWorkerUrl(workerUrl);
 
 const leer = (nombre) => fetch(`/datos/${nombre}`).then((r) => (r.ok ? r.json() : Promise.reject(r)));
 
+// Pintura del mapa base por tema: [capa, propiedad, valor]. El relieve es gris y toma el tono del fondo.
+const PINTURA = {
+  noche: {
+    seleccion: "#f5f0e8",
+    capas: [
+      ["fondo", "background-color", "#0b101b"],
+      ["relieve", "raster-opacity", 0.5],
+      ["relieve", "raster-brightness-max", 0.62],
+      ["rio", "line-color", "#60a5fa"],
+      ["rn9", "line-color", "#e0a84a"],
+      ["cauce", "line-color", "#38d2ec"],
+    ],
+  },
+  dia: {
+    seleccion: "#1c1917",
+    capas: [
+      ["fondo", "background-color", "#f2ece2"],
+      ["relieve", "raster-opacity", 0.6],
+      ["relieve", "raster-brightness-max", 1],
+      ["rio", "line-color", "#0369a1"],
+      ["rn9", "line-color", "#7c5109"],
+      ["cauce", "line-color", "#0284c7"],
+    ],
+  },
+};
+
 const CAPAS = [
-  { id: "fondo", type: "background", paint: { "background-color": "#eef2f7" } },
+  { id: "fondo", type: "background", paint: { "background-color": "#0b101b" } },
   {
     id: "relieve",
     type: "raster",
     source: "relieve",
-    paint: { "raster-opacity": 0.6, "raster-saturation": -0.45, "raster-brightness-max": 1.25 },
+    paint: { "raster-opacity": 0.5, "raster-saturation": -0.45, "raster-brightness-max": 0.62 },
   },
   {
     id: "rio",
     type: "line",
     source: "contexto",
     filter: ["==", ["get", "tipo"], "rio"],
-    paint: { "line-color": "#0369a1", "line-width": 2.5, "line-opacity": 0.75 },
+    paint: { "line-color": "#60a5fa", "line-width": 2.5, "line-opacity": 0.75 },
   },
   {
     id: "rn9",
@@ -33,7 +60,7 @@ const CAPAS = [
     source: "contexto",
     filter: ["==", ["get", "tipo"], "rn9"],
     paint: {
-      "line-color": "#475569",
+      "line-color": "#e0a84a",
       "line-width": 2,
       "line-opacity": 0.9,
       "line-dasharray": [2, 1.4],
@@ -53,7 +80,7 @@ const CAPAS = [
     type: "line",
     source: "cuencas",
     paint: {
-      "line-color": ["get", "color"],
+      "line-color": ["get", "borde"],
       "line-width": ["case", ["==", ["get", "sel"], 1], 3, 1.4],
       "line-opacity": 0.95,
     },
@@ -62,7 +89,7 @@ const CAPAS = [
     id: "cauce",
     type: "line",
     source: "cauces",
-    paint: { "line-color": "#0284c7", "line-width": 1.4, "line-opacity": 0.65 },
+    paint: { "line-color": "#38d2ec", "line-width": 1.4, "line-opacity": 0.65 },
   },
 ];
 
@@ -125,6 +152,15 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
   cuencasRef.current = cuencas;
   const vista3DRef = useRef(vista3D);
   vista3DRef.current = vista3D;
+  const tema = useTema((s) => s.tema);
+  const temaRef = useRef(tema);
+  temaRef.current = tema;
+
+  const pintarTema = () => {
+    const mapa = mapaRef.current;
+    if (!mapa?.isStyleLoaded()) return;
+    for (const [capa, propiedad, valor] of PINTURA[temaRef.current].capas) mapa.setPaintProperty(capa, propiedad, valor);
+  };
 
   const construirOverlay = () => {
     if (!mapaRef.current || overlayRef.current) return;
@@ -241,7 +277,9 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
           ...f,
           properties: {
             ...f.properties,
-            color: c && seleccionRef.current === f.properties.basin_id ? "#0f172a" : NIVELES[nivel].color,
+            // El relleno conserva el color del nivel; la selección solo cambia el borde.
+            color: NIVELES[nivel].color,
+            borde: c && seleccionRef.current === f.properties.basin_id ? PINTURA[temaRef.current].seleccion : NIVELES[nivel].color,
             fillOpacity: c ? NIVELES[nivel].fillOpacity : 0.12,
             sel: seleccionRef.current === f.properties.basin_id ? 1 : 0,
           },
@@ -266,7 +304,7 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
       el.type = "button";
       el.className =
         "pointer-events-auto cursor-pointer rounded-md border px-2 py-1 text-[11px] font-bold shadow-lg backdrop-blur-sm";
-      el.style.cssText = `background:rgba(255,255,255,.92);border-color:${nivel.color};color:${nivel.color}`;
+      el.style.cssText = `background:var(--elevada);border-color:${nivel.color};color:${nivel.tinta}`;
       const eta = cuenta(c.minutos_restantes);
       el.textContent = `⚠ ${f.properties.nombre} · ETA ${eta ?? "—"}`;
       el.setAttribute("aria-label", `Seleccionar ${f.properties.nombre}, nivel ${nivel.nombre}, ETA ${eta ?? "sin definir"}`);
@@ -316,12 +354,13 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
             .forEach((f) => {
               const el = document.createElement("div");
               el.className =
-                "pointer-events-none whitespace-nowrap text-[10px] font-semibold text-slate-700";
-              el.style.textShadow = "0 0 4px #fff, 0 0 4px #fff";
+                "pointer-events-none whitespace-nowrap text-[10px] font-semibold text-tinta";
+              el.style.textShadow = "0 0 4px var(--lienzo), 0 0 4px var(--lienzo)";
               el.textContent = f.properties.nombre;
               new Marker({ element: el, anchor: "left" }).setLngLat(f.geometry.coordinates).addTo(mapa);
             });
           construirOverlay();
+          pintarTema();
           actualizarCapas();
           actualizarMarcadoresImpacto();
         });
@@ -366,6 +405,12 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuencas, seleccion]);
 
+  useEffect(() => {
+    pintarTema();
+    actualizarCapas();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tema]);
+
   // Vista 2D/3D: pitch y Terrain-RGB si hay teselas locales configuradas
   useEffect(() => {
     const mapa = mapaRef.current;
@@ -378,10 +423,10 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
 
   if (errorGL) {
     return (
-      <div className="flex h-full w-full items-center justify-center bg-slate-100 p-6 text-center">
+      <div className="flex h-full w-full items-center justify-center bg-hundida p-6 text-center">
         <div className="max-w-sm">
-          <div className="text-lg font-bold text-slate-800">Mapa no disponible</div>
-          <p className="mt-2 text-sm text-slate-600">
+          <div className="text-lg font-bold text-tinta">Mapa no disponible</div>
+          <p className="mt-2 text-sm text-tinta-2">
             Este navegador no pudo inicializar WebGL, necesario para el mapa táctico. Los datos de las cuencas
             siguen disponibles en el panel lateral.
           </p>

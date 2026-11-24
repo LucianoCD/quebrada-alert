@@ -6,7 +6,7 @@ import { cuenta, emergenciaReciente, estadoEnlace, NIVELES } from "./niveles.js"
 
 const { ancho: ANCHO, alto: ALTO } = corredor;
 const NEUTRO = "#22d3ee";
-const COLOR_ENLACE = { online: "#22d3ee", lora: "#fbbf24", offline: "#94a3b8" };
+const COLOR_ENLACE = { online: "#22d3ee", lora: "#fbbf24", offline: "#a39a8a" };
 // Dónde se apoya la etiqueta de cada cuenca (en píxeles del relieve), hacia qué lado crece y,
 // si no crece desde el cruce, dónde termina su línea guía.
 const ETIQUETAS = {
@@ -16,11 +16,11 @@ const ETIQUETAS = {
   CUENCA_HUASAMAYO: { x: 1164, y: 150, lado: "izquierda", guia: [850, 185] },
 };
 const LEYENDA = [
-  ["RN 9", <span key="i" className="h-[3px] w-4 rounded bg-amber-400" />],
+  ["RN 9", <span key="i" className="h-[3px] w-4 rounded bg-[#e9b44c]" />],
   ["cauce", <span key="i" className="h-[3px] w-4 rounded bg-cyan-400" />],
-  ["cuenca", <span key="i" className="h-2.5 w-3.5 rounded-sm border border-slate-300 bg-slate-300/20" />],
+  ["cuenca", <span key="i" className="h-2.5 w-3.5 rounded-sm border border-stone-300 bg-stone-300/20" />],
   ["estación de cabecera", <span key="i" className="h-2 w-2 rounded-full bg-cyan-300 ring-2 ring-cyan-300/30" />],
-  ["cruce con RN 9", <span key="i" className="h-2 w-2 rotate-45 rounded-[1px] bg-slate-200" />],
+  ["cruce con RN 9", <span key="i" className="h-2 w-2 rotate-45 rounded-[1px] bg-stone-200" />],
 ];
 
 const num = (v, decimales = 1) => v.toLocaleString("es-AR", { maximumFractionDigits: decimales });
@@ -217,7 +217,7 @@ function useSuaves(objetivos) {
 }
 
 const BOTON =
-  "pointer-events-auto flex h-7 min-w-7 items-center justify-center rounded-md border border-white/15 bg-slate-950/80 px-1.5 text-[13px] font-bold leading-none text-slate-100 shadow backdrop-blur-sm transition hover:border-cyan-300/60 hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-35 disabled:hover:border-white/15 disabled:hover:text-slate-100";
+  "pointer-events-auto flex h-7 min-w-7 items-center justify-center rounded-md border border-white/15 bg-stone-950/80 px-1.5 text-[13px] font-bold leading-none text-stone-100 shadow backdrop-blur-sm transition hover:border-cyan-300/60 hover:text-cyan-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 disabled:opacity-35 disabled:hover:border-white/15 disabled:hover:text-stone-100";
 
 /**
  * Ilustración de la landing: el corredor de la RN 9 con las cuatro cuencas sobre relieve sombreado.
@@ -348,7 +348,7 @@ export default function MapaCorredor({ cuencas = [] }) {
   return (
     <figure className="m-0">
       <div
-        className="overflow-hidden rounded-2xl bg-[#070d18] shadow-[0_24px_70px_-20px_rgba(8,47,73,0.55)] ring-1 ring-slate-900/10"
+        className="overflow-hidden rounded-2xl bg-[#0a0e16] shadow-[0_24px_70px_-20px_rgba(0,0,0,0.6)] ring-1 ring-white/10"
         onMouseLeave={() => setActiva(null)}
       >
         <div
@@ -368,14 +368,14 @@ export default function MapaCorredor({ cuencas = [] }) {
         >
           <defs>
             <radialGradient id="corredor-vineta" cx="52%" cy="55%" r="75%">
-              <stop offset="55%" stopColor="#060d1a" stopOpacity="0" />
-              <stop offset="100%" stopColor="#060d1a" stopOpacity="0.7" />
+              <stop offset="55%" stopColor="#080c14" stopOpacity="0" />
+              <stop offset="100%" stopColor="#080c14" stopOpacity="0.7" />
             </radialGradient>
             <linearGradient id="corredor-velo" x1="0" y1="0" x2="0" y2="1">
-              <stop offset="0" stopColor="#060d1a" stopOpacity="0.75" />
-              <stop offset="0.16" stopColor="#060d1a" stopOpacity="0" />
-              <stop offset="0.86" stopColor="#060d1a" stopOpacity="0" />
-              <stop offset="1" stopColor="#060d1a" stopOpacity="0.8" />
+              <stop offset="0" stopColor="#080c14" stopOpacity="0.75" />
+              <stop offset="0.16" stopColor="#080c14" stopOpacity="0" />
+              <stop offset="0.86" stopColor="#080c14" stopOpacity="0" />
+              <stop offset="1" stopColor="#080c14" stopOpacity="0.8" />
             </linearGradient>
             <radialGradient id="corredor-celda">
               <stop offset="0" stopColor="currentColor" stopOpacity="0.55" />
@@ -421,7 +421,7 @@ export default function MapaCorredor({ cuencas = [] }) {
             const [x0, y0, x1, y1] = CAJAS[g.basin_id];
             return (
               <g key={g.basin_id} data-lluvia={g.basin_id} clipPath={`url(#corredor-corte-${g.basin_id})`} opacity={lluvia} pointerEvents="none">
-                <path d={g.contorno} fill="#020617" fillOpacity="0.4" />
+                <path d={g.contorno} fill="#05070c" fillOpacity="0.4" />
                 <rect
                   x={x0 - 80}
                   y={y0 - 80}
@@ -438,8 +438,8 @@ export default function MapaCorredor({ cuencas = [] }) {
           {/* Río Grande y RN 9 */}
           <g fill="none" strokeLinecap="round" strokeLinejoin="round" pointerEvents="none">
             <path d={corredor.rio} stroke="#60a5fa" strokeOpacity="0.45" strokeWidth="1.6" vectorEffect="non-scaling-stroke" />
-            <path d={corredor.rn9} stroke="#070d18" strokeOpacity="0.9" strokeWidth="6" vectorEffect="non-scaling-stroke" />
-            <path d={corredor.rn9} stroke="#fbbf24" strokeWidth="2.6" vectorEffect="non-scaling-stroke" />
+            <path d={corredor.rn9} stroke="#0a0e16" strokeOpacity="0.9" strokeWidth="6" vectorEffect="non-scaling-stroke" />
+            <path d={corredor.rn9} stroke="#e9b44c" strokeWidth="2.6" vectorEffect="non-scaling-stroke" />
           </g>
 
           {/* Cauces con flujo animado hacia la ruta; la onda de crecida avanza con la cuenta regresiva */}
@@ -487,8 +487,8 @@ export default function MapaCorredor({ cuencas = [] }) {
           {/* Localidades de referencia */}
           {corredor.localidades.map(({ nombre, xy: [x, y] }) => (
             <g key={nombre} pointerEvents="none" className="corredor-marca" style={{ transform: `scale(${marca})`, transformOrigin: `${x}px ${y}px` }}>
-              <circle cx={x} cy={y} r="6" fill="#e2e8f0" fillOpacity="0.9" />
-              <text x={x + 16} y={y + 8} fontSize="24" fill="#e2e8f0" fillOpacity="0.85" stroke="#070d18" strokeWidth="5" paintOrder="stroke">
+              <circle cx={x} cy={y} r="6" fill="#efe7da" fillOpacity="0.9" />
+              <text x={x + 16} y={y + 8} fontSize="24" fill="#efe7da" fillOpacity="0.85" stroke="#0a0e16" strokeWidth="5" paintOrder="stroke">
                 {nombre}
               </text>
             </g>
@@ -502,10 +502,10 @@ export default function MapaCorredor({ cuencas = [] }) {
             const enlace = COLOR_ENLACE[vivo ? estadoEnlace(vivo.nodo, vivo.origen) : "online"];
             return (
               <g key={g.basin_id} pointerEvents="none">
-                <line x1={cx} y1={cy} x2={et.guia?.[0] ?? et.x} y2={et.guia?.[1] ?? et.y} stroke="#e2e8f0" strokeOpacity="0.55" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+                <line x1={cx} y1={cy} x2={et.guia?.[0] ?? et.x} y2={et.guia?.[1] ?? et.y} stroke="#efe7da" strokeOpacity="0.55" strokeWidth="1" vectorEffect="non-scaling-stroke" />
                 <g className="corredor-marca" style={{ transform: `scale(${marca})`, transformOrigin: `${ex}px ${ey}px` }}>
                   <circle cx={ex} cy={ey} r="20" fill="none" stroke={enlace} strokeWidth="1.2" vectorEffect="non-scaling-stroke" className="corredor-pulso" />
-                  <circle cx={ex} cy={ey} r="9" fill={enlace} stroke="#070d18" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
+                  <circle cx={ex} cy={ey} r="9" fill={enlace} stroke="#0a0e16" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
                 </g>
                 <g className="corredor-marca" style={{ transform: `scale(${marca})`, transformOrigin: `${cx}px ${cy}px` }}>
                 {orden >= 2 && <circle cx={cx} cy={cy} r="24" fill={color} fillOpacity="0.3" className="corredor-pulso" />}
@@ -522,8 +522,8 @@ export default function MapaCorredor({ cuencas = [] }) {
                   height="22"
                   rx="3"
                   transform={`rotate(45 ${cx} ${cy})`}
-                  fill={vivo || simulada ? color : "#e2e8f0"}
-                  stroke="#070d18"
+                  fill={vivo || simulada ? color : "#efe7da"}
+                  stroke="#0a0e16"
                   strokeWidth="1.5"
                   vectorEffect="non-scaling-stroke"
                 />
@@ -546,7 +546,7 @@ export default function MapaCorredor({ cuencas = [] }) {
             <div
               role="status"
               className={`mt-1.5 inline-block rounded px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider sm:text-[10px] ${
-                simulada ? "bg-amber-300 text-slate-950" : "bg-slate-950/80 text-cyan-200 ring-1 ring-cyan-300/40"
+                simulada ? "bg-amber-300 text-stone-950" : "bg-stone-950/80 text-cyan-200 ring-1 ring-cyan-300/40"
               }`}
             >
               {simulada ? "Simulación ilustrativa · no es un evento real" : `Siguiendo la crecida en ${enFoco.g.localidad}`}
@@ -574,8 +574,8 @@ export default function MapaCorredor({ cuencas = [] }) {
               onFocus={() => setActiva(g.basin_id)}
               onBlur={() => setActiva(null)}
               draggable={false}
-              className={`corredor-etiqueta absolute -translate-y-1/2 rounded-lg border bg-slate-950/75 px-2 py-1 text-left shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 sm:px-2.5 sm:py-1.5 ${
-                destacada ? "z-10 border-white/40 bg-slate-950/90" : "border-white/10"
+              className={`corredor-etiqueta absolute -translate-y-1/2 rounded-lg border bg-stone-950/75 px-2 py-1 text-left shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 sm:px-2.5 sm:py-1.5 ${
+                destacada ? "z-10 border-white/40 bg-stone-950/90" : "border-white/10"
               } ${activa && !destacada ? "opacity-60" : ""} ${fuera ? "invisible" : ""}`}
               style={{
                 [et.lado === "derecha" ? "left" : "right"]: `${((et.lado === "derecha" ? ex : ANCHO - ex) / ANCHO) * 100}%`,
@@ -586,12 +586,12 @@ export default function MapaCorredor({ cuencas = [] }) {
                 <span className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
                 <span className="text-[11px] font-bold leading-tight text-white sm:text-[13px]">{g.localidad}</span>
                 {nivel?.orden > 0 && (
-                  <span className="rounded px-1 text-[9px] font-bold text-slate-950" style={{ background: color }}>
+                  <span className="rounded px-1 text-[9px] font-bold text-stone-950" style={{ background: color }}>
                     {nivel.nombre}
                   </span>
                 )}
               </div>
-              <div className="tabular whitespace-nowrap text-[9px] leading-snug text-slate-300 sm:text-[10.5px]">
+              <div className="tabular whitespace-nowrap text-[9px] leading-snug text-stone-300 sm:text-[10.5px]">
                 <span className="hidden sm:inline">{g.curso} · </span>
                 {restantes != null ? (
                   <b style={{ color }}>
@@ -603,7 +603,7 @@ export default function MapaCorredor({ cuencas = [] }) {
                 )}
               </div>
               {destacada && (
-                <div className="tabular mt-1 hidden w-0 min-w-full border-t border-white/10 pt-1 text-[10px] leading-snug text-slate-400 sm:block">
+                <div className="tabular mt-1 hidden w-0 min-w-full border-t border-white/10 pt-1 text-[10px] leading-snug text-stone-400 sm:block">
                   {num(g.area_km2)} km² · cauce {num(g.largo_km)} km
                   <div>pendiente {num(g.pendiente_pct)} %</div>
                   <div className="text-cyan-300">Ver en el monitor →</div>
@@ -615,7 +615,7 @@ export default function MapaCorredor({ cuencas = [] }) {
 
         {/* Norte, zoom, simulación y escala */}
         <div className="pointer-events-none absolute right-3 top-3 z-20 flex flex-col items-end gap-1 sm:right-4 sm:top-4">
-          <div className="tabular mb-1 text-[10px] font-bold text-slate-200">N ↑</div>
+          <div className="tabular mb-1 text-[10px] font-bold text-stone-200">N ↑</div>
           <button type="button" className={BOTON} aria-label="Acercar" title="Acercar" disabled={vista.k >= ZOOM_MAX} onClick={() => mover(ampliar(vista, 1.5))}>
             +
           </button>
@@ -634,18 +634,18 @@ export default function MapaCorredor({ cuencas = [] }) {
           </button>
         </div>
         <div
-          className="corredor-escala tabular pointer-events-none absolute bottom-3 left-3 text-[9px] text-slate-300 sm:bottom-4 sm:left-4 sm:text-[10px]"
+          className="corredor-escala tabular pointer-events-none absolute bottom-3 left-3 text-[9px] text-stone-300 sm:bottom-4 sm:left-4 sm:text-[10px]"
           style={{ width: `${(km / corredor.km_px / ANCHO) * vista.k * 100}%` }}
         >
           <div className="mb-0.5 flex justify-between">
             <span>0</span>
             <span>{km} km</span>
           </div>
-          <div className="h-1 rounded-sm border border-t-0 border-slate-300/80" />
+          <div className="h-1 rounded-sm border border-t-0 border-stone-300/80" />
         </div>
         </div>
 
-        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/5 px-3 py-2 text-[10px] text-slate-300">
+        <div className="flex flex-wrap items-center justify-center gap-x-4 gap-y-1 border-t border-white/5 px-3 py-2 text-[10px] text-stone-300">
           {LEYENDA.map(([nombre, icono]) => (
             <span key={nombre} className="flex items-center gap-1.5">
               {icono}
@@ -654,7 +654,7 @@ export default function MapaCorredor({ cuencas = [] }) {
           ))}
         </div>
       </div>
-      <figcaption className="mt-2 text-[10px] leading-snug text-slate-500">
+      <figcaption className="mt-2 text-[10px] leading-snug text-tinta-2">
         Relieve: Copernicus DEM GLO-30 · RN 9 y cursos de agua: © OpenStreetMap · contornos de cuenca sin validación
         oficial · tiempos de arribo orientativos (Kirpich).
       </figcaption>

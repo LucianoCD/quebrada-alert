@@ -2,7 +2,7 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
-import Landing from "../Landing.jsx";
+import Landing, { TarjetaCuenca } from "../Landing.jsx";
 import corredor from "../assets/corredor.js";
 import MapaCorredor, {
   acotarVista,
@@ -161,6 +161,30 @@ describe("Componentes tácticos UI v2", () => {
     );
     expect(screen.getByText("31.2 mm LoRa")).toBeInTheDocument();
     expect(screen.getByText("+45 cm")).toBeInTheDocument();
+  });
+
+  it("TarjetaCuenca no anuncia estado normal para una cuenca que todavía no envió lecturas", () => {
+    const sinDatos = { basin_id: "CUENCA_HUASAMAYO", nivel: "GREEN", origen: "sin datos", minutos_restantes: null, nodo: { en_linea: false } };
+    render(
+      <MemoryRouter>
+        <TarjetaCuenca basinId="CUENCA_HUASAMAYO" nombre="Tilcara" rio="Río Huasamayo" cuenca={sinDatos} conectado />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Sin lecturas todavía/)).toBeInTheDocument();
+    expect(screen.queryByText(/Normal/)).toBeNull();
+    expect(screen.queryByText(/Sin señales de crecida/)).toBeNull();
+  });
+
+  it("TarjetaCuenca conserva una alerta restaurada aunque el nodo todavía no haya enviado lecturas", () => {
+    const restaurada = { basin_id: "CUENCA_HUASAMAYO", nivel: "RED", origen: "emergencia", minutos_restantes: 18.4, nodo: { en_linea: false } };
+    render(
+      <MemoryRouter>
+        <TarjetaCuenca basinId="CUENCA_HUASAMAYO" nombre="Tilcara" rio="Río Huasamayo" cuenca={restaurada} conectado />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Emergencia/)).toBeInTheDocument();
+    expect(screen.getByText(/para el arribo estimado a la RN 9/)).toBeInTheDocument();
+    expect(screen.queryByText(/Sin lecturas todavía/)).toBeNull();
   });
 
   it("MapaCorredor enlaza las cuatro cuencas y muestra la cuenta regresiva solo donde hay arribo pendiente", () => {
@@ -345,7 +369,8 @@ describe("Componentes tácticos UI v2", () => {
     expect(screen.getByTestId("mapa-tactico-mock")).toHaveAttribute("data-seleccion", "CUENCA_ARROYO_MEDIO");
     expect(screen.queryByText(/Consola de crisis \/ simulador/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Fuentes externas \(referencia\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/14\.5 mm · 18:00:00 UTC/)).toBeInTheDocument();
+    // 18:00 UTC se muestra en hora local de Jujuy (UTC-3).
+    expect(screen.getByText(/14\.5 mm · 15:00:00/)).toBeInTheDocument();
 
     // Abre ParteModal y pulsa Escape: debe cerrar el modal pero conservar abierto el Inspector.
     fireEvent.click(screen.getByRole("button", { name: "Parte" }));
