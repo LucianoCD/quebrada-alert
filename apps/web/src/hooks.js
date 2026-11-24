@@ -2,28 +2,43 @@ import { useEffect, useState } from "react";
 
 const json = (url, opciones) => fetch(url, opciones).then((r) => (r.ok ? r.json() : Promise.reject(r)));
 
-/** Estado global por WebSocket /ws con reconexión (spec §7.1). */
+const REINTENTOS_MS = [1000, 2000, 4000, 8000, 15000];
+
+/** Estado global por WebSocket /ws con reconexión exponencial (spec §7.1). */
 export function useEstado() {
   const [estado, setEstado] = useState({ cuencas: [], eventos: [] });
   const [conectado, setConectado] = useState(false);
   useEffect(() => {
     let ws;
     let reintento;
+    let intento = 0;
     let vigente = true;
     const abrir = () => {
       ws = new WebSocket(`${location.protocol === "https:" ? "wss" : "ws"}://${location.host}/ws`);
-      ws.onopen = () => setConectado(true);
-      ws.onmessage = (m) => setEstado(JSON.parse(m.data));
+      ws.onopen = () => {
+        intento = 0;
+        setConectado(true);
+      };
+      ws.onmessage = (m) => {
+        try {
+          setEstado(JSON.parse(m.data));
+        } catch {
+          /* mensaje malformado ignorado */
+        }
+      };
       ws.onclose = () => {
         setConectado(false);
-        if (vigente) reintento = setTimeout(abrir, 1000);
+        if (!vigente) return;
+        const espera = REINTENTOS_MS[Math.min(intento, REINTENTOS_MS.length - 1)];
+        intento += 1;
+        reintento = setTimeout(abrir, espera);
       };
     };
     abrir();
     return () => {
       vigente = false;
       clearTimeout(reintento);
-      ws.close();
+      ws?.close();
     };
   }, []);
   return [estado, conectado];

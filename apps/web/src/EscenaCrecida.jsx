@@ -172,11 +172,43 @@ export default function EscenaCrecida() {
       ctx.font = "9px 'JetBrains Mono', monospace";
       ctx.fillText(lluvia > 0.5 ? "LLUVIA CONVECTIVA" : lluvia > 0 ? "LLUVIZNA" : "SIN LLUVIA", w - 122, 66);
 
-      raf = requestAnimationFrame(dibujar);
+      raf = 0;
     };
-    raf = requestAnimationFrame(dibujar);
+
+    const reducirMovimiento =
+      typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)")?.matches;
+    if (reducirMovimiento) {
+      dibujar(10000);
+      return () => observador.disconnect();
+    }
+
+    let visible = true;
+    const bucle = (ms) => {
+      dibujar(ms);
+      if (visible) raf = requestAnimationFrame(bucle);
+    };
+
+    const io =
+      typeof IntersectionObserver !== "undefined"
+        ? new IntersectionObserver(
+            (entradas) => {
+              visible = Boolean(entradas[0]?.isIntersecting);
+              if (visible && !raf) raf = requestAnimationFrame(bucle);
+              if (!visible && raf) {
+                cancelAnimationFrame(raf);
+                raf = 0;
+              }
+            },
+            { threshold: 0.05 },
+          )
+        : null;
+    io?.observe(cv);
+
+    raf = requestAnimationFrame(bucle);
     return () => {
+      visible = false;
       cancelAnimationFrame(raf);
+      io?.disconnect();
       observador.disconnect();
     };
   }, []);

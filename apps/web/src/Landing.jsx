@@ -4,16 +4,16 @@ import { useEstado } from "./hooks.js";
 import EscenaCrecida from "./EscenaCrecida.jsx";
 
 const CUENCAS_LANDING = [
-  ["Volcán", "Arroyo del Medio"],
-  ["Tumbaya", "Río Tumbaya Grande"],
-  ["Purmamarca", "Río Purmamarca"],
-  ["Tilcara", "Río Huasamayo"],
+  ["CUENCA_ARROYO_MEDIO", "Volcán", "Arroyo del Medio"],
+  ["CUENCA_TUMBAYA_GRANDE", "Tumbaya", "Río Tumbaya Grande"],
+  ["CUENCA_PURMAMARCA", "Purmamarca", "Río Purmamarca"],
+  ["CUENCA_HUASAMAYO", "Tilcara", "Río Huasamayo"],
 ];
 
 /** Landing pública (spec §4): portal de entrada. La escena 3D R3F queda para Fase 3. */
 export default function Landing() {
   const [estado, conectado] = useEstado();
-  const porId = new Map(estado.cuencas.map((c) => [c.localidad?.toUpperCase(), c]));
+  const porId = new Map(estado.cuencas.map((c) => [c.basin_id, c]));
   return (
     <div className="min-h-full overflow-y-auto bg-[#eef2f7]">
       {/* Hero */}
@@ -60,14 +60,14 @@ export default function Landing() {
       <section id="cuencas" className="mx-auto max-w-6xl px-6 pb-16">
         <h2 className="mb-6 text-xl font-bold">Estado actual de las cuencas</h2>
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {CUENCAS_LANDING.map(([nombre, rio]) => {
-            const c = porId.get(nombre.toUpperCase());
+          {CUENCAS_LANDING.map(([basinId, nombre, rio]) => {
+            const c = porId.get(basinId);
             const nivel = c ? NIVELES[c.nivel] : null;
             const m = c?.nodo.ultima?.metrics;
             return (
               <Link
-                key={nombre}
-                to={`/monitor?cuenca=${c?.basin_id ?? ""}`}
+                key={basinId}
+                to={`/monitor?cuenca=${basinId}`}
                 className="panel-crisis block p-4 transition hover:ring-1 hover:ring-cyan-400/50"
               >
                 <div className="flex items-center justify-between">

@@ -43,6 +43,7 @@ export const ESCENARIOS = [
   ["llovizna", "Llovizna"],
   ["tormenta_moderada", "Tormenta moderada"],
   ["tormenta_convectiva", "Tormenta convectiva"],
+  ["volcan_2017_cmorph", "Volcán 2017 (CMORPH · satélite)"],
 ];
 
 export const hora = (iso) => (iso ? new Date(iso).toISOString().slice(11, 19) : "--:--:--");

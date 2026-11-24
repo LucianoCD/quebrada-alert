@@ -117,7 +117,7 @@ function TarjetaCuenca({ cuenca, activa, alElegir }) {
       type="button"
       onClick={alElegir}
       className={`panel-crisis w-full p-3 text-left transition ${
-        activa ? "ring-1 ring-white/60" : "hover:bg-slate-200/60"
+        activa ? "ring-2 ring-cyan-600/70" : "hover:bg-slate-200/60"
       }`}
     >
       <div className="flex items-center justify-between gap-2">
@@ -238,6 +238,7 @@ export function Grafico({ historia, eventoResaltado }) {
 function PestanaHidrologia({ cuenca, alVerParte }) {
   const nodeId = cuenca.nodo.node_id;
   const historia = useSondeo(`/api/historia/${nodeId}?limite=400`, 1500, []);
+  const fuentes = useSondeo("/api/fuentes", 30000, null);
   const { eventoResaltado } = useUI();
   return (
     <div className="space-y-3">
@@ -251,7 +252,7 @@ function PestanaHidrologia({ cuenca, alVerParte }) {
         <button
           type="button"
           onClick={() => alVerParte(cuenca.basin_id)}
-          className="mt-2 w-full rounded border border-slate-400 bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-200"
+          className="mt-2 w-full rounded border border-slate-400 bg-slate-200 px-3 py-1.5 text-xs font-bold text-slate-700 hover:bg-slate-300"
         >
           Generar Parte de Situación
         </button>
@@ -260,6 +261,35 @@ function PestanaHidrologia({ cuenca, alVerParte }) {
         <div className="mb-1 text-[10px] uppercase tracking-wide text-slate-600">Serie reconstruida (DuckDB)</div>
         <Grafico historia={historia} eventoResaltado={eventoResaltado} />
       </div>
+      {fuentes?.fuentes?.length > 0 && (
+        <div className="rounded-lg border border-slate-300/70 bg-slate-100/90 p-2.5 text-[11px]">
+          <div className="mb-1.5 flex items-center justify-between text-[10px] uppercase tracking-wide text-slate-600">
+            <span>Fuentes externas (referencia)</span>
+            <span className="tabular font-semibold">{fuentes.lecturas_totales ?? 0} reg.</span>
+          </div>
+          <ul className="space-y-1">
+            {fuentes.fuentes.map((f) => (
+              <li key={f.id} className="flex items-center justify-between gap-2 text-slate-700">
+                <span className="truncate">{f.nombre}</span>
+                <span
+                  className={`shrink-0 font-mono text-[10px] ${
+                    f.ultima?.estado === "ok"
+                      ? "text-emerald-700"
+                      : f.ultima?.estado === "error"
+                        ? "text-rose-700"
+                        : "text-slate-500"
+                  }`}
+                >
+                  {f.ultima ? `${f.ultima.estado} (${f.ultima.nuevas})` : "pendiente"}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <div className="mt-1.5 text-[10px] text-slate-500">
+            Capa de referencia (SNIH / Open-Meteo) — no dispara el semáforo táctico.
+          </div>
+        </div>
+      )}
     </div>
   );
 }
@@ -380,17 +410,20 @@ export function Inspector({ cuenca, eventos, simulador, alVerParte }) {
           <button
             type="button"
             onClick={() => useUI.getState().cerrarInspector()}
+            aria-label="Cerrar inspector"
             className="rounded px-1.5 text-slate-600 hover:bg-slate-200 hover:text-slate-800"
             title="Cerrar (Esc)"
           >
             ✕
           </button>
         </div>
-        <div className="mt-1.5 flex gap-1">
+        <div role="tablist" aria-label="Vistas del inspector" className="mt-1.5 flex gap-1">
           {pestanas.map(([id, nombre]) => (
             <button
               key={id}
               type="button"
+              role="tab"
+              aria-selected={pestana === id}
               onClick={() => setPestana(id)}
               className={`rounded px-2 py-0.5 text-[11px] font-semibold ${
                 pestana === id ? "bg-slate-300 text-slate-800" : "text-slate-600 hover:bg-slate-200"

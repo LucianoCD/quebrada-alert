@@ -4,7 +4,23 @@ import MapaTactico from "./MapaTactico.jsx";
 import ParteModal from "./ParteModal.jsx";
 import { AlertBanner, BasinList, ConsolaSimulador, Inspector, TopBar } from "./paneles.jsx";
 import { useEstado, useSondeo } from "./hooks.js";
+import { NIVELES } from "./niveles.js";
 import { useUI } from "./store.js";
+
+const SLUGS_CUENCA = {
+  volcan: "CUENCA_ARROYO_MEDIO",
+  tumbaya: "CUENCA_TUMBAYA_GRANDE",
+  purmamarca: "CUENCA_PURMAMARCA",
+  tilcara: "CUENCA_HUASAMAYO",
+};
+const SIN_SIMULADOR = {};
+
+const normalizarSlug = (texto) =>
+  String(texto || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .trim();
 
 /** Centro de Comando `/monitor` — layout Tactical Map-First (spec §5). */
 export default function Monitor() {
@@ -20,28 +36,29 @@ export default function Monitor() {
     panelIzquierdo,
   } = useUI();
   const [parte, setParte] = useState(null);
-  const [simulador, setSimulador] = useState({});
 
-  // Deep-link ?cuenca=ID (spec §3)
+  // Deep-link ?cuenca=ID o ?cuenca=slug (spec §3)
   useEffect(() => {
-    const id = params.get("cuenca");
-    if (id && estado.cuencas.some((c) => c.basin_id === id)) seleccionarCuenca(id);
+    const raw = params.get("cuenca");
+    if (!raw) return;
+    const id = SLUGS_CUENCA[normalizarSlug(raw)] ?? raw;
+    if (estado.cuencas.some((c) => c.basin_id === id)) seleccionarCuenca(id);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, estado.cuencas.length]);
 
-  // Selector por defecto: la de mayor severidad
+  // Selector por defecto: la de mayor severidad (RED > ORANGE > YELLOW)
   const peor = estado.cuencas.reduce(
-    (a, b) => (b.nivel !== "GREEN" && (!a || a.nivel === "GREEN") ? b : a),
+    (a, b) => (!a || (NIVELES[b.nivel]?.orden ?? 0) > (NIVELES[a.nivel]?.orden ?? 0) ? b : a),
     null,
   );
+  const masCritica = peor && peor.nivel !== "GREEN" ? peor : null;
   const seleccionada =
     estado.cuencas.find((c) => c.basin_id === cuencaSeleccionada) ??
-    estado.cuencas.find((c) => c.basin_id === peor?.basin_id) ??
+    estado.cuencas.find((c) => c.basin_id === masCritica?.basin_id) ??
     estado.cuencas[0];
 
   // Estado de los nodos edge: siempre disponible (alimenta la pestaña "Nodo y Red").
-  const sondeoSim = useSondeo("/api/simulador", 2000, {});
-  useEffect(() => setSimulador(sondeoSim ?? {}), [sondeoSim]);
+  const simulador = useSondeo("/api/simulador", 2000, SIN_SIMULADOR) ?? SIN_SIMULADOR;
 
   // Atajos de teclado (spec §6.3)
   useEffect(() => {
@@ -60,12 +77,12 @@ export default function Monitor() {
       } else if (e.key === "s" || e.key === "S") {
         useUI.getState().alternarSimulador();
       } else if (e.key === "Escape") {
-        useUI.getState().cerrarInspector();
+        if (!parte) useUI.getState().cerrarInspector();
       }
     };
     window.addEventListener("keydown", alTecla);
     return () => window.removeEventListener("keydown", alTecla);
-  }, [estado.cuencas, seleccionarCuenca]);
+  }, [estado.cuencas, parte, seleccionarCuenca]);
 
   return (
     <div className={`relative h-full w-full overflow-hidden ${modoSimulador ? "modo-simulador" : ""}`}>
@@ -87,7 +104,7 @@ export default function Monitor() {
         <button
           type="button"
           onClick={abrirInspector}
-          className="panel-crisis absolute bottom-3 right-3 z-10 rounded px-3 py-1.5 text-xs text-slate-700 hover:text-white"
+          className="panel-crisis absolute bottom-3 right-3 z-10 rounded px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 hover:text-slate-950"
         >
           Inspector ⟩
         </button>

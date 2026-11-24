@@ -76,23 +76,34 @@ const DURACION_VIAJE_MS = 9000;
 
 function estiloCompleto(contexto, cuencasGeo, cauces) {
   const [[s, w], [n, e]] = contexto.relieve_limites;
+  const sources = {
+    relieve: {
+      type: "image",
+      url: "/datos/relieve.png",
+      coordinates: [
+        [w, n],
+        [e, n],
+        [e, s],
+        [w, s],
+      ],
+    },
+    contexto: { type: "geojson", data: contexto },
+    cuencas: { type: "geojson", data: cuencasGeo },
+    cauces: { type: "geojson", data: cauces },
+  };
+  if (contexto.terrain?.tiles) {
+    sources.terrain = {
+      type: "raster-dem",
+      tiles: [contexto.terrain.tiles],
+      encoding: contexto.terrain.encoding || "mapbox",
+      tileSize: 256,
+      minzoom: contexto.terrain.minzoom ?? 10,
+      maxzoom: contexto.terrain.maxzoom ?? 12,
+    };
+  }
   return {
     version: 8,
-    sources: {
-      relieve: {
-        type: "image",
-        url: "/datos/relieve.png",
-        coordinates: [
-          [w, n],
-          [e, n],
-          [e, s],
-          [w, s],
-        ],
-      },
-      contexto: { type: "geojson", data: contexto },
-      cuencas: { type: "geojson", data: cuencasGeo },
-      cauces: { type: "geojson", data: cauces },
-    },
+    sources,
     layers: CAPAS,
   };
 }
@@ -102,6 +113,7 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
   const mapaRef = useRef(null);
   const overlayRef = useRef(null);
   const rafRef = useRef(0);
+  const tieneTerrainRef = useRef(false);
   const datosRef = useRef({ cuencasGeo: null, cauceFeatures: [], puntos: [] });
   const marcadoresRef = useRef([]);
   const [errorGL, setErrorGL] = useState(false);
@@ -250,12 +262,14 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
       const f = puntos.find((p) => p.properties.tipo === "impacto" && p.properties.basin_id === c.basin_id);
       if (!f) return;
       const nivel = NIVELES[c.nivel];
-      const el = document.createElement("div");
+      const el = document.createElement("button");
+      el.type = "button";
       el.className =
         "pointer-events-auto cursor-pointer rounded-md border px-2 py-1 text-[11px] font-bold shadow-lg backdrop-blur-sm";
       el.style.cssText = `background:rgba(255,255,255,.92);border-color:${nivel.color};color:${nivel.color}`;
       const eta = cuenta(c.minutos_restantes);
       el.textContent = `⚠ ${f.properties.nombre} · ETA ${eta ?? "—"}`;
+      el.setAttribute("aria-label", `Seleccionar ${f.properties.nombre}, nivel ${nivel.nombre}, ETA ${eta ?? "sin definir"}`);
       el.onclick = () => elegir.current(c.basin_id);
       const marcador = new Marker({ element: el, anchor: "bottom" })
         .setLngLat(f.geometry.coordinates)
@@ -274,11 +288,12 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
           ["contexto.geojson", "cuencas.geojson", "cauces.geojson", "puntos.geojson"].map(leer),
         );
         if (cancelado || !contenedor.current) return;
+        tieneTerrainRef.current = Boolean(contexto.terrain?.tiles);
         const [[s, w], [n, e]] = contexto.relieve_limites;
         mapa = new MLMap({
           container: contenedor.current,
           style: estiloCompleto(contexto, cuencasGeo, cauces),
-          center: [-(w + e) / 2, -(s + n) / 2],
+          center: [(w + e) / 2, (s + n) / 2],
           zoom: 10.3,
           pitch: vista3DRef.current ? 58 : 0,
           attributionControl: { compact: true },
@@ -293,6 +308,9 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
             puntos: puntos.features,
           };
           mapa.fitBounds(new LngLatBounds([w, s], [e, n]), { padding: 60 });
+          if (vista3DRef.current && tieneTerrainRef.current) {
+            mapa.setTerrain({ source: "terrain", exaggeration: 1.5 });
+          }
           puntos.features
             .filter((f) => f.properties.tipo === "localidad")
             .forEach((f) => {
@@ -326,6 +344,15 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
       cancelado = true;
       cancelAnimationFrame(rafRef.current);
       marcadoresRef.current.forEach((m) => m.remove());
+      marcadoresRef.current = [];
+      if (overlayRef.current) {
+        try {
+          mapa?.removeControl(overlayRef.current);
+        } catch {
+          /* el mapa pudo haberse destruido antes */
+        }
+        overlayRef.current = null;
+      }
       mapa?.remove();
       mapaRef.current = null;
     };
@@ -339,9 +366,14 @@ export default function MapaTactico({ cuencas, seleccion, vista3D, alSeleccionar
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuencas, seleccion]);
 
-  // Vista 2D/3D: pitch (terrain-RGB requiere tiles locales — pendiente spec §5.2)
+  // Vista 2D/3D: pitch y Terrain-RGB si hay teselas locales configuradas
   useEffect(() => {
-    mapaRef.current?.easeTo({ pitch: vista3D ? 58 : 0, duration: 700 });
+    const mapa = mapaRef.current;
+    if (!mapa) return;
+    if (tieneTerrainRef.current) {
+      mapa.setTerrain(vista3D ? { source: "terrain", exaggeration: 1.5 } : null);
+    }
+    mapa.easeTo({ pitch: vista3D ? 58 : 0, duration: 700 });
   }, [vista3D]);
 
   if (errorGL) {
