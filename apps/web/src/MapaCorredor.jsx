@@ -135,7 +135,10 @@ export function franja({ puntos, estacion, largo }, crecida, fin, margen = 0) {
   const k = b[2] > a[2] ? entre((fin - a[2]) / (b[2] - a[2]), 0, 1) : 0;
   const eje = [...puntos.slice(0, hasta), [a[0] + (b[0] - a[0]) * k, a[1] + (b[1] - a[1]) * k, fin]];
   const n = (v) => v.toFixed(1);
-  const radios = eje.map(([, , s]) => semiancho(s, { crecida, largo, estacion, fin }) + margen);
+  // El agua termina en punta sobre el frente: ningún disco se adelanta al punto que usa la cuenta regresiva.
+  const radios = eje.map(([, , s]) =>
+    Math.min(semiancho(s, { crecida, largo, estacion, fin }) + margen, CAUCE_NORMAL + fin - s),
+  );
   return eje
     .map(([x, y], i) => {
       const r = radios[i];

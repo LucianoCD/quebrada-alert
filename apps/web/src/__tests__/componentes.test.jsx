@@ -280,6 +280,13 @@ describe("Componentes tácticos UI v2", () => {
     expect(media).not.toMatch(/NaN/);
     expect(Math.max(...xs(media))).toBe(150);
     expect(Math.max(...xs(franja(rio, 1, 200)))).toBe(200);
+    // Ni el agua ni su halo se adelantan al frente: el cruce no se tiñe antes del arribo.
+    const borde = (d) =>
+      Math.max(...[...d.matchAll(/M(-?[\d.]+),-?[\d.]+a([\d.]+),/g)].map(([, x, r]) => Number(x) + 2 * Number(r)));
+    for (const fin of [100, 150, 190]) {
+      expect(borde(franja(rio, 1, fin)), `agua a ${fin}`).toBeLessThan(fin + 1.5);
+      expect(borde(franja(rio, 1, fin, 7)), `halo a ${fin}`).toBeLessThan(fin + 1.5);
+    }
   });
 
   it("MapaCorredor dibuja el río crecido solo en las cuencas con alerta", () => {
