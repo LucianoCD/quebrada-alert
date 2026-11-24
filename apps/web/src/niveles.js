@@ -18,7 +18,7 @@ export const NIVELES = {
   YELLOW: {
     nombre: "AMARILLO",
     estado: "Atención",
-    frase: "Lluvia en aumento",
+    frase: "Lluvia en la cabecera",
     orden: 1,
     color: "#F59E0B",
     texto: "text-amarillo",
