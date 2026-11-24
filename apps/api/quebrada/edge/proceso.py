@@ -5,6 +5,7 @@ python -m quebrada.edge.proceso --node EST-VOLCAN-CAB01 --basin CUENCA_ARROYO_ME
 
 import argparse
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -17,6 +18,8 @@ from quebrada.edge.nodo import Nodo
 from quebrada.hydrology import intervalo_muestreo_s
 from quebrada.schemas import Nivel
 
+log = logging.getLogger("quebrada.edge")
+
 
 class Orden(BaseModel):
     escenario: str | None = None
@@ -28,8 +31,15 @@ class Orden(BaseModel):
 def crear_app(nodo: Nodo, escala: float) -> FastAPI:
     async def bucle() -> None:
         while True:
-            lectura = await asyncio.to_thread(nodo.paso)
-            await asyncio.sleep(intervalo_muestreo_s(lectura.edge_local_alert) / escala)
+            try:
+                lectura = await asyncio.to_thread(nodo.paso)
+                espera = intervalo_muestreo_s(lectura.edge_local_alert) / escala
+            except asyncio.CancelledError:
+                raise
+            except Exception:
+                log.exception("Error en ciclo de medición del nodo %s; se reintenta en 1 s", nodo.node_id)
+                espera = 1.0
+            await asyncio.sleep(espera)
 
     @asynccontextmanager
     async def ciclo(_: FastAPI):

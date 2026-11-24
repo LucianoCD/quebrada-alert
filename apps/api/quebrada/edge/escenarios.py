@@ -43,8 +43,9 @@ METADATOS_ESCENARIOS: dict[str, dict[str, str]] = {
         "etiqueta": "Volcán 2017 (CMORPH)",
         "origen": "estimacion_satelital_cmorph",
         "nota": (
-            "Estimación satelital CMORPH 8 km / 30 min del 10/01/2017 (48,6 mm; pico 25,6 mm/h), "
-            "no medición en cabecera."
+            "Estimación satelital CMORPH 8 km / 30 min del 10/01/2017 (48,6 mm; pico 25,6 mm/h y 6,4 mm/15 min), "
+            "no medición en cabecera: iguala el umbral global de Caine (1980) para 15 min (6,36 mm), pero queda "
+            "en AMARILLO bajo los umbrales ilustrativos actuales (15 mm/15 min) por suavizado espacial."
         ),
     },
 }

@@ -67,6 +67,7 @@ class Nodo:
         self.registro: list[str] = []
         self.ultima: Telemetria | None = None
         self._lock = threading.RLock()
+        self._tx_lock = threading.Lock()
 
     # --- almacenamiento local -------------------------------------------------------------
 
@@ -120,9 +121,12 @@ class Nodo:
                 turbidity_proxy_ntu=round(medido["turbidez_ntu"], 1),
                 battery_soc_pct=round(self.estado.bateria_pct, 1),
             )
-            anterior, self.nivel = self.nivel, hydrology.clasificar(metricas)
+            anterior = self.nivel
+            self.nivel = hydrology.clasificar(metricas, hydrology.umbrales_para(self.basin_id))
             if self.nivel != anterior:
                 self._anotar(f"Semáforo local: {anterior.name} -> {self.nivel.name}")
+            if self.nivel is Nivel.VERDE:
+                self.emergencia_enviada = Nivel.VERDE
             self.baliza = self.nivel is Nivel.ROJO
             seq = self.ultimo_seq() + 1
             lectura = Telemetria(
@@ -140,18 +144,19 @@ class Nodo:
                     (seq, self.reloj.isoformat(), medido["lluvia_mm"], medido["nivel_cm"], lectura.model_dump_json()),
                 )
             self.ultima = lectura
-            self.sincronizar()
+
+        self.sincronizar()
+
+        with self._lock:
             if self.conectividad is Conectividad.ISLA and lectura.connectivity_state is not Conectividad.ISLA:
                 lectura = lectura.model_copy(update={"connectivity_state": Conectividad.ISLA})
                 self.ultima = lectura
-            self._emergencia(lectura)
-            return lectura
+        self._emergencia(lectura)
+        return lectura
 
     # --- transmisión ----------------------------------------------------------------------
 
-    def _transmitir(self, mensajes: list[dict]) -> bool:
-        if not self.enlace_activo:
-            return False
+    def _transmitir_sin_lock(self, mensajes: list[dict]) -> bool:
         try:
             return bool(self.enviar(mensajes))
         except Exception:
@@ -159,44 +164,54 @@ class Nodo:
 
     def sincronizar(self) -> int:
         """Envía lo pendiente en orden de secuencia. Devuelve cuántas lecturas confirmó el backend."""
-        with self._lock:
+        with self._tx_lock:
             confirmadas = 0
-            estaba_en_isla = self.conectividad is Conectividad.ISLA
+            with self._lock:
+                estaba_en_isla = self.conectividad is Conectividad.ISLA
             anoto_reconexion = False
             while True:
-                filas = self.db.execute(
-                    "select seq, carga from lecturas where enviado = 0 order by seq limit ?", (self.lote,)
-                ).fetchall()
-                if not filas:
-                    break
-                ultimo = self.ultimo_seq()
-                mensajes = []
-                if not self.nacido:
-                    mensajes.append({"topic": topico("NBIRTH", self.node_id), "payload": self._nacimiento()})
-                for seq, carga in filas:
-                    datos = json.loads(carga)
-                    # Solo la lectura recién tomada es telemetría en vivo; el resto es recuperación.
-                    datos["is_historical"] = seq != ultimo
-                    datos["connectivity_state"] = Conectividad.EN_LINEA.value
-                    mensajes.append({"topic": topico("NDATA", self.node_id), "payload": datos})
-                if not self._transmitir(mensajes):
-                    if self.conectividad is Conectividad.EN_LINEA:
-                        self._anotar("Sin enlace: paso a ISLAND_MODE, las lecturas quedan en la cola local")
-                    self.conectividad, self.nacido = Conectividad.ISLA, False
-                    return confirmadas
-                with self.db:
-                    self.db.executemany("update lecturas set enviado = 1 where seq = ?", [(s,) for s, _ in filas])
-                if estaba_en_isla and not anoto_reconexion:
-                    self._anotar("Enlace restablecido: vaciando la cola local")
-                    anoto_reconexion = True
-                if not self.nacido:
-                    self._guardar_meta("bd_seq", self._meta("bd_seq") + 1)
-                    self.db.commit()
-                    self.nacido = True
-                confirmadas += len(filas)
-            if confirmadas > 0:
-                self.conectividad = Conectividad.EN_LINEA
-                self.emergencia_enviada = Nivel.VERDE
+                with self._lock:
+                    filas = self.db.execute(
+                        "select seq, carga from lecturas where enviado = 0 order by seq limit ?", (self.lote,)
+                    ).fetchall()
+                    if not filas:
+                        break
+                    ultimo = self.ultimo_seq()
+                    enlace = self.enlace_activo
+                    mensajes = []
+                    if not self.nacido:
+                        mensajes.append({"topic": topico("NBIRTH", self.node_id), "payload": self._nacimiento()})
+                    for seq, carga in filas:
+                        datos = json.loads(carga)
+                        # Solo la lectura recién tomada es telemetría en vivo; las atrasadas conservan ISLAND_MODE.
+                        datos["is_historical"] = seq != ultimo
+                        datos["connectivity_state"] = (
+                            Conectividad.ISLA.value if seq != ultimo else Conectividad.EN_LINEA.value
+                        )
+                        mensajes.append({"topic": topico("NDATA", self.node_id), "payload": datos})
+
+                ok = self._transmitir_sin_lock(mensajes) if enlace else False
+
+                with self._lock:
+                    if not ok:
+                        if self.conectividad is Conectividad.EN_LINEA:
+                            self._anotar("Sin enlace: paso a ISLAND_MODE, las lecturas quedan en la cola local")
+                        self.conectividad, self.nacido = Conectividad.ISLA, False
+                        return confirmadas
+                    with self.db:
+                        self.db.executemany("update lecturas set enviado = 1 where seq = ?", [(s,) for s, _ in filas])
+                    if estaba_en_isla and not anoto_reconexion:
+                        self._anotar("Enlace restablecido: vaciando la cola local")
+                        anoto_reconexion = True
+                    if not self.nacido:
+                        self._guardar_meta("bd_seq", self._meta("bd_seq") + 1)
+                        self.db.commit()
+                        self.nacido = True
+                    confirmadas += len(filas)
+            with self._lock:
+                if confirmadas > 0:
+                    self.conectividad = Conectividad.EN_LINEA
+                    self.emergencia_enviada = Nivel.VERDE
             return confirmadas
 
     def _nacimiento(self) -> dict:
@@ -211,31 +226,41 @@ class Nodo:
 
     def _emergencia(self, lectura: Telemetria) -> None:
         """Aislado y con umbral crítico: emite un paquete corto por el enlace de respaldo, una vez por nivel."""
-        critico = self.nivel.orden >= Nivel.NARANJA.orden
-        if self.conectividad is not Conectividad.ISLA or not critico:
-            return
-        if self.nivel.orden <= self.emergencia_enviada.orden:
-            return
-        paquete = Emergencia(
-            node_id=self.node_id,
-            basin_id=self.basin_id,
-            seq=lectura.seq,
-            timestamp_utc=lectura.timestamp_utc,
-            edge_local_alert=self.nivel,
-            rain_mm_15m=lectura.metrics.rain_mm_15m,
-            water_level_rise_15m_cm=lectura.metrics.water_level_rise_15m_cm,
-        ).model_dump(mode="json")
-        self._anotar(f"Alerta autónoma {self.nivel.name}: baliza local y paquete de emergencia por LoRa")
+        with self._lock:
+            critico = self.nivel.orden >= Nivel.NARANJA.orden
+            if self.conectividad is not Conectividad.ISLA or not critico:
+                return
+            if self.nivel.orden <= self.emergencia_enviada.orden:
+                return
+            nivel_objetivo = self.nivel
+            usar_respaldo = bool(self.respaldo_activo and self.enviar_respaldo)
+            paquete = Emergencia(
+                node_id=self.node_id,
+                basin_id=self.basin_id,
+                seq=lectura.seq,
+                timestamp_utc=lectura.timestamp_utc,
+                edge_local_alert=nivel_objetivo,
+                rain_mm_15m=lectura.metrics.rain_mm_15m,
+                water_level_rise_15m_cm=lectura.metrics.water_level_rise_15m_cm,
+            ).model_dump(mode="json")
+            if nivel_objetivo is Nivel.ROJO:
+                self._anotar(f"Alerta autónoma {nivel_objetivo.name}: baliza local y paquete de emergencia por LoRa")
+            else:
+                self._anotar(f"Alerta autónoma {nivel_objetivo.name}: paquete de emergencia por LoRa")
+
         entregado = False
-        if self.respaldo_activo and self.enviar_respaldo:
+        if usar_respaldo and self.enviar_respaldo is not None:
             try:
                 entregado = bool(self.enviar_respaldo([{"topic": topico("NDATA", self.node_id), "payload": paquete}]))
             except Exception:
                 entregado = False
-        if entregado:
-            self.emergencia_enviada = self.nivel
-        else:
-            self._anotar("El paquete de emergencia no llegó al gateway; se reintenta en la próxima lectura")
+
+        with self._lock:
+            if entregado:
+                if nivel_objetivo.orden > self.emergencia_enviada.orden and self.nivel is not Nivel.VERDE:
+                    self.emergencia_enviada = nivel_objetivo
+            else:
+                self._anotar("El paquete de emergencia no llegó al gateway; se reintenta en la próxima lectura")
 
     def aplicar_control(
         self,

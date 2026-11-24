@@ -11,7 +11,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 
 import httpx
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, HTTPException, Query, WebSocket, WebSocketDisconnect
 from fastapi.responses import PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -110,7 +110,7 @@ def crear_app(ruta_db: str | None = None, fuentes_auto: bool | None = None) -> F
         return motor.resumen()
 
     @app.get("/api/historia/{node_id}")
-    async def historia(node_id: str, limite: int = 2000) -> list[dict]:
+    async def historia(node_id: str, limite: int = Query(default=2000, ge=1, le=10000)) -> list[dict]:
         return motor.historia(node_id, limite)
 
     @app.get("/api/parte/{basin_id}", response_class=PlainTextResponse)

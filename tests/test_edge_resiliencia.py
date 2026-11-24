@@ -1,5 +1,6 @@
 """Pruebas de resiliencia, concurrencia y vaciado multi-lote del nodo edge (Issue #2)."""
 
+import threading
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 
@@ -184,3 +185,105 @@ def test_concurrencia_paso_estado_y_control(tmp_path):
 
         r_err = cliente.post("/control", json={"escenario": "inexistente"})
         assert r_err.status_code == 422
+
+
+def test_m2_segunda_tormenta_en_mismo_corte_reemite_lora(tmp_path):
+    motor = Motor()
+    emergencias: list[Emergencia] = []
+
+    def respaldo(mensajes: list[dict]) -> bool:
+        for m in mensajes:
+            paquete = Emergencia(**m["payload"])
+            emergencias.append(paquete)
+            motor.emergencia(paquete)
+        return True
+
+    nodo = Nodo(
+        NODO,
+        CUENCA,
+        tmp_path / "m2.sqlite",
+        lambda m: motor.procesar([Mensaje(**x) for x in m]) is not None,
+        respaldo,
+        inicio=INICIO,
+    )
+    nodo.paso()
+    nodo.enlace_activo = False
+
+    # Primera tormenta en corte: llega a ROJO y emite por LoRa.
+    nodo.estado.cambiar("tormenta_convectiva", nodo.reloj.timestamp())
+    for _ in range(300):
+        if nodo.paso().edge_local_alert is Nivel.ROJO:
+            break
+    assert len(emergencias) >= 1
+    envios_primera = len(emergencias)
+
+    # Cesa la lluvia sin recuperar enlace celular hasta volver a VERDE.
+    nodo.estado.cambiar("normal", nodo.reloj.timestamp())
+    for _ in range(1000):
+        if nodo.paso().edge_local_alert is Nivel.VERDE:
+            break
+    assert nodo.nivel is Nivel.VERDE
+    assert nodo.emergencia_enviada is Nivel.VERDE
+
+    # Segunda tormenta dentro del mismo corte: debe volver a emitir paquete LoRa.
+    nodo.estado.cambiar("tormenta_convectiva", nodo.reloj.timestamp())
+    for _ in range(300):
+        if nodo.paso().edge_local_alert is Nivel.ROJO:
+            break
+    assert len(emergencias) > envios_primera
+
+
+def test_lecturas_historicas_conservan_island_mode_y_aviso_naranja_sin_baliza(tmp_path):
+    lotes_recibidos: list[list[dict]] = []
+    motor = Motor()
+
+    def principal(mensajes: list[dict]) -> bool:
+        lotes_recibidos.append(mensajes)
+        motor.procesar([Mensaje(**m) for m in mensajes])
+        return True
+
+    nodo = Nodo(NODO, CUENCA, tmp_path / "isla.sqlite", principal, lambda m: True, inicio=INICIO)
+    nodo.paso()
+    nodo.enlace_activo = False
+    nodo.estado.cambiar("tormenta_convectiva", nodo.reloj.timestamp())
+    for _ in range(150):
+        lectura = nodo.paso()
+        if lectura.edge_local_alert is Nivel.NARANJA:
+            break
+    assert any(
+        "Alerta autónoma NARANJA: paquete de emergencia por LoRa" in linea and "baliza" not in linea
+        for linea in nodo.registro
+    )
+
+    nodo.enlace_activo = True
+    nodo.paso()
+    ultimo_lote = lotes_recibidos[-1]
+    ndata = [m["payload"] for m in ultimo_lote if m["topic"].endswith(f"/NDATA/{NODO}")]
+    historicas = [p for p in ndata if p["is_historical"]]
+    vivas = [p for p in ndata if not p["is_historical"]]
+    assert len(historicas) >= 1
+    assert all(p["connectivity_state"] == Conectividad.ISLA.value for p in historicas)
+    assert len(vivas) == 1
+    assert vivas[0]["connectivity_state"] == Conectividad.EN_LINEA.value
+
+
+def test_resumen_no_bloquea_durante_envio_lento(tmp_path):
+    en_envio = threading.Event()
+    liberar = threading.Event()
+
+    def envio_lento(_mensajes: list[dict]) -> bool:
+        en_envio.set()
+        assert liberar.wait(timeout=3.0)
+        return True
+
+    nodo = Nodo(NODO, CUENCA, tmp_path / "lento.sqlite", envio_lento, inicio=INICIO)
+    hilo = threading.Thread(target=nodo.paso)
+    hilo.start()
+    assert en_envio.wait(timeout=2.0)
+
+    # Mientras el hilo de envío espera a la red, resumen() debe responder sin bloquearse.
+    res = nodo.resumen()
+    assert res["node_id"] == NODO
+    liberar.set()
+    hilo.join(timeout=3.0)
+    assert not hilo.is_alive()
