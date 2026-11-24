@@ -104,7 +104,7 @@ export default function Monitor() {
         <button
           type="button"
           onClick={abrirInspector}
-          className="panel-crisis absolute bottom-3 right-3 z-10 rounded px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-200 hover:text-slate-950"
+          className="panel-crisis absolute bottom-3 right-3 z-10 rounded px-3 py-1.5 text-xs text-tinta-2 hover:bg-realce hover:text-tinta"
         >
           Inspector ⟩
         </button>
@@ -113,10 +113,10 @@ export default function Monitor() {
       {modoSimulador && (
         <div className="panel-crisis absolute inset-x-3 bottom-3 z-10 max-h-[38vh] overflow-y-auto p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[11px] font-bold uppercase tracking-wide text-amber-700">
+            <span className="text-[11px] font-bold uppercase tracking-wide text-amarillo">
               Consola de crisis / simulador
             </span>
-            <span className="text-[10px] text-slate-600">Entorno de demostración — no representa datos reales</span>
+            <span className="text-[10px] text-tinta-2">Entorno de demostración — no representa datos reales</span>
           </div>
           <ConsolaSimulador simulador={simulador} />
         </div>

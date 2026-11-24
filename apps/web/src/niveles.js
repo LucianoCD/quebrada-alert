@@ -1,37 +1,52 @@
-/** Tokens semánticos alineados a la especificación UI/UX v2.0 §6.1 */
+/**
+ * Niveles del semáforo. `estado` y `frase` son el nombre y la lectura en lenguaje llano; `color` es el relleno (igual en ambos temas, con texto `text-sobre-nivel`);
+ * `texto` y `tinta` son el color legible como texto, que cambia con el tema.
+ */
 export const NIVELES = {
   GREEN: {
     nombre: "VERDE",
+    estado: "Normal",
+    frase: "Sin señales de crecida",
     orden: 0,
     color: "#10B981",
-    texto: "text-emerald-400",
+    texto: "text-verde",
+    tinta: "var(--verde)",
     fondo: "bg-emerald-500",
     forma: "●",
     fillOpacity: 0.12,
   },
   YELLOW: {
     nombre: "AMARILLO",
+    estado: "Atención",
+    frase: "Lluvia en aumento",
     orden: 1,
     color: "#F59E0B",
-    texto: "text-amber-400",
+    texto: "text-amarillo",
+    tinta: "var(--amarillo)",
     fondo: "bg-amber-500",
     forma: "▲",
     fillOpacity: 0.28,
   },
   ORANGE: {
     nombre: "NARANJA",
+    estado: "Alerta",
+    frase: "Posible crecida",
     orden: 2,
     color: "#F97316",
-    texto: "text-orange-400",
+    texto: "text-naranja",
+    tinta: "var(--naranja)",
     fondo: "bg-orange-500",
     forma: "◆",
     fillOpacity: 0.4,
   },
   RED: {
     nombre: "ROJO",
+    estado: "Emergencia",
+    frase: "Crecida probable",
     orden: 3,
     color: "#EF4444",
-    texto: "text-red-400",
+    texto: "text-rojo",
+    tinta: "var(--rojo)",
     fondo: "bg-red-500",
     forma: "⬢",
     fillOpacity: 0.5,
@@ -46,7 +61,20 @@ export const ESCENARIOS = [
   ["volcan_2017_cmorph", "Volcán 2017 (CMORPH · satélite)"],
 ];
 
-export const hora = (iso) => (iso ? new Date(iso).toISOString().slice(11, 19) : "--:--:--");
+// Jujuy no tiene horario de verano: siempre UTC-3. Se fija la zona para no depender de la del navegador.
+const RELOJ_LOCAL = new Intl.DateTimeFormat("es-AR", {
+  timeZone: "America/Argentina/Jujuy",
+  hour: "2-digit",
+  minute: "2-digit",
+  second: "2-digit",
+  hourCycle: "h23",
+});
+
+/** Hora local de Jujuy (UTC-3) de un instante ISO. */
+export function hora(iso) {
+  const t = Date.parse(iso);
+  return Number.isFinite(t) ? RELOJ_LOCAL.format(t) : "--:--:--";
+}
 
 export function cuenta(minutos) {
   if (minutos == null) return null;

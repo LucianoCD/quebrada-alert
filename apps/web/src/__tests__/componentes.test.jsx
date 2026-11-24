@@ -345,7 +345,8 @@ describe("Componentes tácticos UI v2", () => {
     expect(screen.getByTestId("mapa-tactico-mock")).toHaveAttribute("data-seleccion", "CUENCA_ARROYO_MEDIO");
     expect(screen.queryByText(/Consola de crisis \/ simulador/i)).not.toBeInTheDocument();
     expect(screen.getByText(/Fuentes externas \(referencia\)/i)).toBeInTheDocument();
-    expect(screen.getByText(/14\.5 mm · 18:00:00 UTC/)).toBeInTheDocument();
+    // 18:00 UTC se muestra en hora local de Jujuy (UTC-3).
+    expect(screen.getByText(/14\.5 mm · 15:00:00/)).toBeInTheDocument();
 
     // Abre ParteModal y pulsa Escape: debe cerrar el modal pero conservar abierto el Inspector.
     fireEvent.click(screen.getByRole("button", { name: "Parte" }));

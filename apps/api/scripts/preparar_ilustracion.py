@@ -26,16 +26,16 @@ ANCHO = 1200
 ESCALA_RELIEVE = 1.5
 LOCALIDADES = ("Maimará",)
 
-# Tinte por altura (m s. n. m. -> RGB): fondo de valle oscuro, cumbres claras.
+# Tinte por altura (m s. n. m. -> RGB): basalto en el fondo del valle, ocres y arena hacia las cumbres.
 TINTE = [
-    (1500, (14, 26, 44)),
-    (2600, (20, 36, 60)),
-    (3400, (30, 50, 78)),
-    (4200, (46, 69, 100)),
-    (5000, (80, 104, 135)),
-    (5600, (134, 154, 178)),
+    (1500, (15, 19, 27)),
+    (2600, (28, 29, 35)),
+    (3400, (50, 43, 41)),
+    (4200, (82, 65, 52)),
+    (5000, (126, 99, 74)),
+    (5600, (176, 150, 118)),
 ]
-LUZ_CALIDA, SOMBRA_FRIA = (255, 214, 170), (4, 9, 20)
+LUZ_CALIDA, SOMBRA_FRIA = (255, 214, 170), (5, 8, 14)
 
 
 def _suavizar(a: Any, pasadas: int) -> Any:
