@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import corredor from "./assets/corredor.js";
 import relieve from "./assets/corredor-relieve.webp";
-import { cuenta, estadoEnlace, NIVELES } from "./niveles.js";
+import { cuenta, emergenciaReciente, estadoEnlace, NIVELES } from "./niveles.js";
 
 const { ancho: ANCHO, alto: ALTO } = corredor;
 const NEUTRO = "#22d3ee";
@@ -236,7 +236,9 @@ export default function MapaCorredor({ cuencas = [] }) {
     const orden = nivel?.orden ?? 0;
     const restantes = sim ? sim.restantes : vivo?.minutos_restantes;
     const fraccion = sim ? sim.fraccion : restantes != null && eta > 0 ? 1 - restantes / eta : null;
-    const lluvia = sim ? sim.lluvia : entre((vivo?.nodo?.ultima?.metrics?.rain_mm_15m ?? 0) / 20, 0, 1);
+    // Con el enlace principal caído, la lluvia vigente es la del último paquete de respaldo.
+    const mm = emergenciaReciente(vivo?.nodo)?.rain_mm_15m ?? vivo?.nodo?.ultima?.metrics?.rain_mm_15m ?? 0;
+    const lluvia = sim ? sim.lluvia : entre(mm / 20, 0, 1);
     return {
       g,
       vivo,
@@ -330,7 +332,7 @@ export default function MapaCorredor({ cuencas = [] }) {
             if (!lluvia) return null;
             const [x0, y0, x1, y1] = CAJAS[g.basin_id];
             return (
-              <g key={g.basin_id} clipPath={`url(#corredor-corte-${g.basin_id})`} opacity={lluvia} pointerEvents="none">
+              <g key={g.basin_id} data-lluvia={g.basin_id} clipPath={`url(#corredor-corte-${g.basin_id})`} opacity={lluvia} pointerEvents="none">
                 <path d={g.contorno} fill="#020617" fillOpacity="0.4" />
                 <rect
                   x={x0 - 80}

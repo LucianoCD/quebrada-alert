@@ -218,6 +218,23 @@ describe("Componentes tácticos UI v2", () => {
     expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeEnabled();
   });
 
+  it("MapaCorredor dibuja la lluvia del último paquete de respaldo cuando la telemetría quedó vieja", () => {
+    const volcan = CUENCAS_DEMO.find((c) => c.basin_id === "CUENCA_ARROYO_MEDIO");
+    const seca = { ...volcan.nodo.ultima, metrics: { ...volcan.nodo.ultima.metrics, rain_mm_15m: 0 } };
+    const { container, rerender } = render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[{ ...volcan, nodo: { ...volcan.nodo, ultima: seca } }]} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('[data-lluvia="CUENCA_ARROYO_MEDIO"]')).toHaveAttribute("opacity", "1");
+    rerender(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[{ ...volcan, nodo: { ...volcan.nodo, ultima: seca, ultima_emergencia: null } }]} />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('[data-lluvia="CUENCA_ARROYO_MEDIO"]')).toBeNull();
+  });
+
   it("MapaCorredor simula una crecida rotulada como ilustrativa y permite detenerla", () => {
     render(
       <MemoryRouter>
