@@ -31,7 +31,7 @@ const PINTURA = {
     capas: [
       ["fondo", "background-color", "#f2ece2"],
       ["relieve", "raster-opacity", 0.6],
-      ["relieve", "raster-brightness-max", 1.25],
+      ["relieve", "raster-brightness-max", 1],
       ["rio", "line-color", "#0369a1"],
       ["rn9", "line-color", "#7c5109"],
       ["cauce", "line-color", "#0284c7"],
