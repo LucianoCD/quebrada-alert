@@ -209,6 +209,9 @@ describe("Componentes tácticos UI v2", () => {
     );
     expect(screen.getByRole("status")).toHaveTextContent("Siguiendo la crecida en Volcán");
     expect(screen.queryByRole("button", { name: /Simular crecida/ })).not.toBeInTheDocument();
+    // Las etiquetas que quedan fuera del cuadro ampliado salen del orden de tabulación.
+    expect(screen.getByRole("link", { name: /Volcán/ })).not.toHaveClass("invisible");
+    expect(screen.getByRole("link", { name: /Tilcara/ })).toHaveClass("invisible");
     // Vista ya acercada: se puede alejar y, al hacerlo, volver al zoom automático.
     expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeDisabled();
     fireEvent.click(screen.getByRole("button", { name: "Alejar" }));

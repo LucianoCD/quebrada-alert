@@ -263,7 +263,7 @@ export default function MapaCorredor({ cuencas = [] }) {
       >
         <div
           ref={marco}
-          className={`relative w-full select-none overflow-hidden ${arrastrando ? "corredor-arrastre cursor-grabbing" : vista.k > 1 ? "cursor-grab" : ""}`}
+          className={`relative w-full select-none overflow-clip ${arrastrando ? "corredor-arrastre cursor-grabbing" : vista.k > 1 ? "cursor-grab" : ""}`}
           style={{ aspectRatio: `${ANCHO} / ${ALTO}`, touchAction: vista.k > 1 ? "none" : "pan-y" }}
           onPointerDown={alPresionar}
           onPointerMove={alArrastrar}
@@ -470,6 +470,9 @@ export default function MapaCorredor({ cuencas = [] }) {
         {capas.map(({ g, nivel, eta, restantes, color, llegada, simulada: esSimulada }) => {
           const et = ETIQUETAS[g.basin_id];
           const destacada = activa === g.basin_id;
+          const [ex, ey] = [et.x * vista.k + vista.tx, et.y * vista.k + vista.ty];
+          // Fuera del cuadro no se ve ni recibe foco: si no, el teclado llevaría a un enlace recortado.
+          const fuera = ex < 0 || ex > ANCHO || ey < 0 || ey > ALTO;
           return (
             <Link
               key={g.basin_id}
@@ -480,11 +483,10 @@ export default function MapaCorredor({ cuencas = [] }) {
               draggable={false}
               className={`corredor-etiqueta absolute -translate-y-1/2 rounded-lg border bg-slate-950/75 px-2 py-1 text-left shadow-lg backdrop-blur-sm focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-300 sm:px-2.5 sm:py-1.5 ${
                 destacada ? "z-10 border-white/40 bg-slate-950/90" : "border-white/10"
-              } ${activa && !destacada ? "opacity-60" : ""}`}
+              } ${activa && !destacada ? "opacity-60" : ""} ${fuera ? "invisible" : ""}`}
               style={{
-                [et.lado === "derecha" ? "left" : "right"]:
-                  `${((et.lado === "derecha" ? et.x * vista.k + vista.tx : ANCHO - et.x * vista.k - vista.tx) / ANCHO) * 100}%`,
-                top: `${((et.y * vista.k + vista.ty) / ALTO) * 100}%`,
+                [et.lado === "derecha" ? "left" : "right"]: `${((et.lado === "derecha" ? ex : ANCHO - ex) / ANCHO) * 100}%`,
+                top: `${(ey / ALTO) * 100}%`,
               }}
             >
               <div className="flex items-center gap-1.5">
