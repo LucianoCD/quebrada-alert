@@ -141,8 +141,10 @@ def main() -> None:
             punto("estacion", p["basin_id"]),
             punto("impacto", p["basin_id"]),
         )
-        # Tramo estación -> RN 9: por ahí baja la onda de crecida que anima la ilustración.
+        # Tramo estación -> RN 9: por ahí baja la onda de crecida que anima la ilustración. El cauce
+        # sigue hasta el río Grande, así que se corta en el vértice más próximo al cruce.
         desde = min(range(len(cauce)), key=lambda i: math.dist(cauce[i], estacion))
+        hasta = min(range(desde, len(cauce)), key=lambda i: math.dist(cauce[i], impacto))
         cuencas.append(
             {
                 "basin_id": p["basin_id"],
@@ -155,7 +157,7 @@ def main() -> None:
                 "eta_min": round(kirpich_min(p["largo_estacion_impacto_m"], p["pendiente_estacion_impacto"])),
                 "contorno": trazo(f["geometry"]["coordinates"][0], cerrar=True),
                 "cauce": trazo(cauce),
-                "tramo": [px(*c) for c in [estacion, *cauce[desde + 1 :], impacto]],
+                "tramo": [px(*c) for c in [estacion, *cauce[desde + 1 : hasta], impacto]],
                 "estacion": px(*estacion),
                 "cruce": px(*impacto),
             }
