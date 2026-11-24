@@ -46,7 +46,7 @@ Monorepo organizado para trabajar en equipo con agentes. Reglas y comandos en
 | `apps/api/quebrada/edge/` | Nodo simulado: SQLite en modo WAL, secuencia, modo isla, cola de reenvío y alerta local. |
 | `apps/api/quebrada/backend/` | FastAPI + DuckDB: ingesta, reconciliación, motor de alertas, WebSocket y parte de situación. |
 | `apps/api/quebrada/demo.py` | Orquesta el backend y un proceso por estación (`python -m quebrada.demo`). |
-| `apps/web/` | Tablero React + Vite + Tailwind + Leaflet con la consola de crisis. |
+| `apps/web/` | Tablero React + Vite + Tailwind + MapLibre GL / Deck.gl con la consola de crisis. |
 | `docs/data/` | GeoJSON y relieve que el backend sirve en `/datos`. |
 | `apps/api/scripts/preparar_geodatos.py` | Delimita las microcuencas y genera las capas de `docs/data/`. |
 | `tests/` | Tests del núcleo y de la API (pytest). |
@@ -123,7 +123,7 @@ MDE y OSM en `data_raw/`).
 - **Cuencas sin validar.** Los contornos salen de un procedimiento automático y no se contrastaron con
   cartografía oficial ni con la DPRH. La cuenca de Purmamarca (380 km²) no es una microcuenca.
 - **Lluvia, nivel y turbidez simulados** con un modelo de reservorio lineal sin base local.
-- **Sin perfiles de tormenta reales.** No se incorporaron datos de Open-Meteo.
+- **Escenarios y datos externos.** Los escenarios operativos son simulados (salvo `volcan_2017_cmorph`, rotulado como estimación satelital histórica). La capa `/api/fuentes` sincroniza lluvia observada del SNIH y pronóstico/archivo ERA5 de Open-Meteo solo como referencia, sin mezclarlos con el semáforo de los nodos.
 - **Enlace de respaldo:** se emula como un segundo canal HTTP. El alcance de LoRa en quebradas encajonadas
   habría que medirlo en el terreno.
 
@@ -138,4 +138,4 @@ MDE y OSM en `data_raw/`).
    violetas), "lecturas faltantes" queda en 0 y no aparecen alertas nuevas.
 
 Variante: cortar también el respaldo LoRa antes de la tormenta y restablecer todo cuando ya volvió a verde.
-El tablero nunca pasa a rojo, pero el evento `RECUPERACION` informa que el nodo llegó a rojo durante el corte.
+Si el pico crítico ocurrió hace más del tiempo de arribo a la RN 9, el tablero no dispara alerta tardía (solo registra el evento `RECUPERACION` con el máximo visto durante el corte); si la onda todavía está en camino (`ts + eta_min > ahora`), abre el episodio con la cuenta regresiva correspondiente.

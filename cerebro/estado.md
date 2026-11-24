@@ -26,7 +26,10 @@ actualizado: 2026-11-23
   (`quebrada/fuentes`: controller–service–repository): SNIH 280049/10040 +
   Open-Meteo forecast/archive; endpoints `/api/fuentes*`; tablas
   `fuente_lectura` / `fuente_sincronizacion` (capa de referencia, sin mezclar
-  con nodos). Ver [[fuentes-datos]] y `docs/api.md`.
+  con nodos), upsert de pronósticos en conflicto y backoff exponencial ante
+  errores (PR #9 + endurecimiento). Ver [[fuentes-datos]] y `docs/api.md`.
+- Suite de pruebas de frontend (Vitest + Testing Library) y verificación E2E
+  offline (`tests/test_e2e_tablero.py`) integradas en CI (`.github/workflows/ci.yml`).
 
 ## En curso
 
@@ -69,10 +72,13 @@ actualizado: 2026-11-23
   `@deck.gl/geo-layers` para el flujo animado de cauces, nivel de alerta solo
   por transición de `edge_local_alert` (los umbrales son de lluvia/ascenso,
   no de cm absoluto — no se inventan bandas).
-- 2026-11-23 — Se resolvieron los Issues #2, #3, #6 y #8: `threading.RLock` y
-  vaciado multi-lote seguro en `edge/nodo.py` + `edge/proceso.py`; validación
-  estricta de tópicos Sparkplug B en `schemas.py` (`422` en lugar de `500`) y
-  restauración de `EstadoNodo` tras reiniciar DuckDB en `backend/motor.py`;
-  utilidades Terrain-RGB offline en `preparar_geodatos.py`, escenario histórico
-  `volcan_2017_cmorph` y curvas de referencia Caine/Guzzetti en `hydrology.py`;
-  y sincronización de `cerebro/` (ver [[decisiones]] y [[limitaciones]]).
+- 2026-11-23 — Se integró el PR #9 (Issue #4, `flopy77`), se resolvieron los
+  Issues #5 (fixes StrictMode/WebGL, centro de mapa, severidad, contrastes,
+  accesibilidad, backoff WS, capa `/api/fuentes` y escenario `volcan_2017_cmorph`
+  en UI) y #7 (Vitest en `apps/web`, E2E offline en `tests/test_e2e_tablero.py`
+  y CI), y se corrigieron hallazgos de auditoría: retención de episodios hasta
+  `arribo_estimado + 5 min` (A1), activación por pico recuperado con onda en
+  camino (A2), uso de `umbrales_para(basin_id)` (A3), parte coherente con
+  emergencias LoRa (M1), reemisión tras volver a verde en corte (M2),
+  persistencia `nodos_meta` en DuckDB (M3), actualización de pronósticos (M4)
+  y backoff exponencial en `FuentesScheduler` (ver [[decisiones]]).

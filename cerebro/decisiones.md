@@ -111,3 +111,18 @@ Ver [[modelo-negocio]] y `docs/modelo-negocio-quebrada-alert.md`.
   Mapbox Terrain-RGB para preparar teselas 3D locales sin alterar los activos
   GeoJSON actuales, y `escenarios.py` incorpora `volcan_2017_cmorph` rotulado
   como estimación satelital histórica.
+- **Episodios, recuperación activa y persistencia operativa (2026-11-23)**:
+  - `Motor._nivel()` retiene episodios `NARANJA`/`ROJO` hasta
+    `arribo_estimado + 5 min` aunque cese la lluvia antes de que la onda llegue
+    a la RN 9 (hallazgo A1).
+  - `Motor._recuperacion()` abre o eleva alerta (`solo_subir=True`) si una
+    lectura histórica recuperada alcanzó `NARANJA`/`ROJO` y `ts + eta_min > ahora`
+    (hallazgo A2), manteniendo inocuas tormentas viejas ya arribadas.
+  - DuckDB agrega `nodos_meta` para preservar `keepalive_s`, `escala` y
+    `en_linea` ante reinicios rápidos del backend (hallazgo M3).
+  - `FuentesRepository.guardar_lecturas` actualiza registros `PRONOSTICO` en
+    conflicto cuando cambia el valor (hallazgo M4) y `FuentesScheduler` aplica
+    backoff exponencial (`30 s` → intervalo configurado) ante fallos.
+  - El tablero divide chunks de `maplibre-gl` y `@deck.gl` en `vite.config.js`,
+    muestra `/api/fuentes` como capa de referencia en el Inspector y está
+    cubierto por Vitest (`apps/web`) y `tests/test_e2e_tablero.py` en CI.

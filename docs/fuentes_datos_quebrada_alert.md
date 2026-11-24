@@ -198,6 +198,8 @@ Métricas mínimas de validación por cuenca:
 ### 10.2 Generación offline de Terrain-RGB
 El script `apps/api/scripts/preparar_geodatos.py` incorpora codificación **Mapbox Terrain-RGB** (`codificar_terrain_rgb` / `generar_terrain_rgb`, paso vertical $0{,}1\text{ m}$, base $-10000\text{ m}$) proyectando Copernicus GLO-30 a `EPSG:3857` en teselas `256x256` PNG para zooms `10..12` bajo `docs/data/terrain/{z}/{x}/{y}.png`, registrando el descriptor `terrain` en `contexto.geojson` sin alterar los 5 archivos base de la demo.
 
+> **Nota de calibración (`volcan_2017_cmorph`):** el perfil CMORPH 8 km del 10/01/2017 alcanza `6,4 mm/15 min` y `24,1 mm/60 min` — prácticamente idéntico al umbral global de Caine (1980) para 15 min (`6,36 mm`) — pero bajo los umbrales ilustrativos sin calibrar (`15 mm/15 min` para `NARANJA`) solo alcanza `AMARILLO`. Esto refleja tanto el suavizado espacial del píxel de 8 km como la necesidad de calibración local antes de un piloto.
+
 ### 10.3 Matriz de licencias para transición demo → piloto comercial B2G
 | Activo / Fuente | Licencia actual | Uso permitido | Acción para piloto comercial B2G |
 |---|---|---|---|

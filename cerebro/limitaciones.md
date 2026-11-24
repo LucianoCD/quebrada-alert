@@ -18,7 +18,9 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
   oficial/DPRH; la cuenca de Purmamarca (380 km²) no es una microcuenca.
 - **Sensores simulados**: lluvia, nivel y turbidez salen de un modelo de
   reservorio lineal sin base local; los escenarios operativos son sintéticos,
-  salvo `volcan_2017_cmorph` rotulado como estimación satelital.
+  salvo `volcan_2017_cmorph` rotulado como estimación satelital (su pico de
+  `6,4 mm/15 min` iguala Caine 1980, pero queda en `AMARILLO` bajo los umbrales
+  ilustrativos actuales por suavizado de píxel 8 km y falta de calibración).
 
 ## Infraestructura
 
@@ -47,10 +49,15 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
 ## Presentación
 
 - El tablero v2.0 ya representa los 4 niveles del semáforo incluyendo `ROJO`
-  (`#EF4444` y banner crítico), pero la vista `3D` actual solo inclina la cámara
-  (`pitch`) hasta integrar teselas `Terrain-RGB` en el mapa.
-- La landing utiliza una animación 2D en canvas (`EscenaCrecida.jsx`) como
-  placeholder mientras quedan pendientes la Fase 3 (escena 3D R3F) y la Fase 4
-  (QA de resiliencia y fallback WebGL pulido).
+  (banner crítico, tarjeta e iconos), y `MapaTactico.jsx` está listo para
+  consumir teselas `Terrain-RGB` cuando `contexto.geojson` declare `terrain`;
+  sin embargo, las teselas aún no están pregeneradas en `docs/data/terrain/`,
+  por lo que la vista `3D` actual solo inclina la cámara (`pitch`).
+- La landing utiliza una animación 2D en canvas (`EscenaCrecida.jsx`, con
+  `IntersectionObserver` y `prefers-reduced-motion`) como placeholder mientras
+  quedan pendientes la Fase 3 (escena 3D R3F) y la Fase 4 (QA visual completo).
 - El tema implementado en `apps/web/src/index.css` es claro (`#eef2f7`) en
   lugar del *Dark Mode* descrito originalmente en `docs/especificacion-ui-ux-v2.md`.
+- `npm audit` reporta vulnerabilidades indirectas en dependencias de Deck.gl que
+  procesan formatos externos; el impacto en la demo offline es bajo porque solo
+  carga archivos estáticos locales propios en `docs/data/`.
