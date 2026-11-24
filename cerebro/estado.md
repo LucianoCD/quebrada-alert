@@ -86,7 +86,8 @@ actualizado: 2026-11-23
   y backoff exponencial en `FuentesScheduler` (ver [[decisiones]]).
 - 2026-11-23 — Tercera auditoría resuelta (N1–N7 y UI M1/M5): reparación de
   `apps/web/package-lock.json` (`@emnapi/core`/`@emnapi/runtime` para `npm ci`
-  en CI), parseo ISO `"Z"` compatible con Python 3.10 + matriz `3.10`/`3.11`,
+  en CI), parseo ISO `"Z"` + dependencia `pytz>=2024.1` para DuckDB `1.x` en
+  Python 3.10 (matriz `3.10`/`3.11`),
   extensión de retención por `ultimo_critico`, persistencia `cuencas_meta` en
   DuckDB, fusión de eventos `RECUPERACION` multilote, upsert para todas las
   fuentes externas (`SNIH`/ERA5/Forecast), exposición de `ultima_emergencia`

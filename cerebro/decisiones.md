@@ -132,7 +132,9 @@ Ver [[modelo-negocio]] y `docs/modelo-negocio-quebrada-alert.md`.
     requeridas por `@rolldown/binding-wasm32-wasi` para que `npm ci` no falle en CI.
   - **Compatibilidad Python 3.10 (`N2`)**: `_parse_iso` en `motor.py` y el
     arranque de `edge/nodo.py` normalizan sufijos `"Z"` antes de
-    `datetime.fromisoformat`, respaldado por matriz `["3.10", "3.11"]` en CI.
+    `datetime.fromisoformat`, respaldado por matriz `["3.10", "3.11"]` en CI y
+    `"pytz>=2024.1"` en `pyproject.toml` (necesario en DuckDB `1.x` para
+    deserializar columnas `TIMESTAMPTZ` bajo Python 3.10).
   - **Pulsos múltiples, reinicio y recuperación multilote (`N3`–`N5`)**:
     `EstadoCuenca.ultimo_critico` extiende el piso de retención hasta
     `max(arribo_estimado, ultimo_critico + eta) + MARGEN_ARRIBO_MIN` sin mover
