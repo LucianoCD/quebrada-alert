@@ -58,7 +58,9 @@ Lo que el proyecto **no** afirma. Fuente: `README.md` § Limitaciones + código.
   `apps/api/scripts/preparar_ilustracion.py`). Es una ilustración 2D, no la
   escena 3D R3F de la Fase 3, que sigue pendiente junto con la Fase 4 (QA visual
   completo). Los contornos no tienen validación oficial y el ETA que rotula es
-  el de Kirpich, orientativo.
+  el de Kirpich, orientativo. El botón "Simular crecida" (y su reproducción
+  automática, una sola vez, cuando no hay crecida real) anima una crecida
+  ilustrativa rotulada como tal: no usa datos de ninguna estación.
 - El tema implementado en `apps/web/src/index.css` es claro (`#eef2f7`) en
   lugar del *Dark Mode* descrito originalmente en `docs/especificacion-ui-ux-v2.md`.
 - `npm audit` reporta vulnerabilidades indirectas en dependencias de Deck.gl que

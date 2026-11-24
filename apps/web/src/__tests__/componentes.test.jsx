@@ -3,7 +3,7 @@ import { MemoryRouter } from "react-router-dom";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { AlertBanner, BasinList } from "../paneles.jsx";
 import Landing from "../Landing.jsx";
-import MapaCorredor, { avanceEnTramo } from "../MapaCorredor.jsx";
+import MapaCorredor, { acotarVista, ampliar, avanceEnTramo, crecidaSimulada, DURACION_SIMULACION } from "../MapaCorredor.jsx";
 import ParteModal from "../ParteModal.jsx";
 import Monitor from "../Monitor.jsx";
 import { useUI } from "../store.js";
@@ -191,6 +191,54 @@ describe("Componentes tácticos UI v2", () => {
     expect(avanceEnTramo(tramo, 0.25).punto).toEqual([5, 0]);
     expect(avanceEnTramo(tramo, 0.75)).toEqual({ punto: [10, 5], trazo: "M0.0,0.0L10.0,0.0L10.0,5.0" });
     expect(avanceEnTramo(tramo, 7).punto).toEqual([10, 10]);
+  });
+
+  it("MapaCorredor sigue sola la crecida real más severa y no ofrece la simulación mientras dura", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={CUENCAS_DEMO} />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Siguiendo la crecida en Volcán");
+    expect(screen.queryByRole("button", { name: /Simular crecida/ })).not.toBeInTheDocument();
+    // Vista ya acercada: se puede alejar y, al hacerlo, volver al zoom automático.
+    expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Alejar" }));
+    expect(screen.getByRole("button", { name: "Volver al zoom automático" })).toBeEnabled();
+  });
+
+  it("MapaCorredor simula una crecida rotulada como ilustrativa y permite detenerla", () => {
+    render(
+      <MemoryRouter>
+        <MapaCorredor cuencas={[]} />
+      </MemoryRouter>,
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Alejar" })).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: /Simular crecida/ }));
+    expect(screen.getByRole("status")).toHaveTextContent("Simulación ilustrativa · no es un evento real");
+    expect(screen.getByRole("button", { name: "Alejar" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: /Detener/ }));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+  });
+
+  it("crecidaSimulada escala de nivel, hace bajar el frente hasta la RN 9 y termina sin lluvia", () => {
+    expect(crecidaSimulada(0, 52)).toMatchObject({ nivel: "YELLOW", lluvia: 0, crecida: 0, fraccion: null, restantes: null });
+    expect(crecidaSimulada(3, 52)).toMatchObject({ nivel: "ORANGE", lluvia: 1 });
+    const medio = crecidaSimulada(7, 52);
+    expect(medio.nivel).toBe("RED");
+    expect(medio.restantes).toBeCloseTo(52 * (1 - medio.fraccion));
+    expect(crecidaSimulada(DURACION_SIMULACION, 52)).toMatchObject({ nivel: "RED", lluvia: 0, fraccion: 1, restantes: 0 });
+  });
+
+  it("ampliar y acotarVista no dejan ver fuera del mapa ni pasar los límites de zoom", () => {
+    const general = { k: 1, tx: 0, ty: 0 };
+    expect(ampliar(general, 1 / 1.5)).toEqual(general);
+    const cerca = ampliar(general, 2);
+    expect(cerca).toEqual({ k: 2, tx: -600, ty: -668.5 });
+    expect(acotarVista({ k: 2, tx: 500, ty: -5000 })).toEqual({ k: 2, tx: 0, ty: -1337 });
+    expect(ampliar(ampliar(cerca, 2), 2).k).toBe(4);
+    expect(ampliar(cerca, 0.5)).toEqual(general);
   });
 
   it("ParteModal expone role=dialog, carga texto y cierra con Escape", async () => {

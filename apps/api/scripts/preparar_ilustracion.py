@@ -22,6 +22,8 @@ SALIDA = RAIZ / "apps" / "web" / "src" / "assets"
 # Encuadre del corredor Volcán–Tilcara, con margen al este para las etiquetas.
 OESTE, SUR, ESTE, NORTE = -65.735, -23.995, -65.205, -23.452
 ANCHO = 1200
+# El relieve se guarda a mayor resolución que las geometrías para que no se pixele al ampliar.
+ESCALA_RELIEVE = 1.5
 LOCALIDADES = ("Maimará",)
 
 # Tinte por altura (m s. n. m. -> RGB): fondo de valle oscuro, cumbres claras.
@@ -82,7 +84,7 @@ def relieve(ancho: int, alto: int) -> Any:
     llano = math.sin(math.radians(42)) * 0.6 + math.sin(math.radians(55)) * 0.4
     relativo = luz - llano  # 0 en terreno llano; positivo a la luz, negativo a la sombra
     # Oclusión ambiental barata: los fondos de quebrada quedan más oscuros que su entorno.
-    hundido = np.clip((_suavizar(z, 24) - z) / 260, -1, 1)
+    hundido = np.clip((_suavizar(z, round(24 * (45 / metros_px) ** 2)) - z) / 260, -1, 1)
 
     cotas = np.array([c for c, _ in TINTE], dtype="float64")
     color = np.stack([np.interp(z, cotas, [rgb[i] for _, rgb in TINTE]) for i in range(3)], axis=-1)
@@ -157,6 +159,7 @@ def main() -> None:
                 "eta_min": round(kirpich_min(p["largo_estacion_impacto_m"], p["pendiente_estacion_impacto"])),
                 "contorno": trazo(f["geometry"]["coordinates"][0], cerrar=True),
                 "cauce": trazo(cauce),
+                "cabecera": trazo([*cauce[: desde + 1], estacion]),
                 "tramo": [px(*c) for c in [estacion, *cauce[desde + 1 : hasta], impacto]],
                 "estacion": px(*estacion),
                 "cruce": px(*impacto),
@@ -164,7 +167,9 @@ def main() -> None:
         )
 
     SALIDA.mkdir(parents=True, exist_ok=True)
-    relieve(ANCHO, alto).save(SALIDA / "corredor-relieve.webp", quality=82, method=6)
+    relieve(round(ANCHO * ESCALA_RELIEVE), round(alto * ESCALA_RELIEVE)).save(
+        SALIDA / "corredor-relieve.webp", quality=82, method=6
+    )
     corredor = {
         "ancho": ANCHO,
         "alto": alto,

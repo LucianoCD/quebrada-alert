@@ -129,10 +129,61 @@ body,
 .corredor-latido {
   animation: corredor-latido 1.6s ease-in-out infinite;
 }
+@keyframes corredor-llueve {
+  to {
+    /* Un período del patrón de lluvia (72 px) a lo largo de su eje, girado 18°. */
+    transform: translate(-22.25px, 68.48px);
+  }
+}
+
+.corredor-llueve {
+  animation: corredor-llueve 0.42s linear infinite;
+}
+
+/* Zoom: el mapa, sus símbolos y las etiquetas se mueven con la misma curva para no desfasarse. */
+.corredor-vista,
+.corredor-marca {
+  transition: transform 0.9s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.corredor-etiqueta {
+  transition:
+    left 0.9s cubic-bezier(0.3, 0, 0.2, 1),
+    right 0.9s cubic-bezier(0.3, 0, 0.2, 1),
+    top 0.9s cubic-bezier(0.3, 0, 0.2, 1),
+    opacity 0.2s,
+    border-color 0.2s,
+    background-color 0.2s;
+}
+
+.corredor-escala {
+  transition: width 0.9s cubic-bezier(0.3, 0, 0.2, 1);
+}
+
+.corredor-crece path {
+  transition: stroke-width 1.2s ease-out;
+}
+
+.corredor-arrastre .corredor-vista,
+.corredor-arrastre .corredor-marca,
+.corredor-arrastre .corredor-etiqueta,
+.corredor-arrastre .corredor-escala {
+  transition: none;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .corredor-flujo,
   .corredor-pulso,
-  .corredor-latido {
+  .corredor-latido,
+  .corredor-llueve {
     animation: none;
+  }
+
+  .corredor-vista,
+  .corredor-marca,
+  .corredor-etiqueta,
+  .corredor-escala,
+  .corredor-crece path {
+    transition: none;
   }
 }
