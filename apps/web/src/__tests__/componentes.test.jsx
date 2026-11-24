@@ -175,6 +175,18 @@ describe("Componentes tácticos UI v2", () => {
     expect(screen.queryByText(/Sin señales de crecida/)).toBeNull();
   });
 
+  it("TarjetaCuenca conserva una alerta restaurada aunque el nodo todavía no haya enviado lecturas", () => {
+    const restaurada = { basin_id: "CUENCA_HUASAMAYO", nivel: "RED", origen: "emergencia", minutos_restantes: 18.4, nodo: { en_linea: false } };
+    render(
+      <MemoryRouter>
+        <TarjetaCuenca basinId="CUENCA_HUASAMAYO" nombre="Tilcara" rio="Río Huasamayo" cuenca={restaurada} conectado />
+      </MemoryRouter>,
+    );
+    expect(screen.getByText(/Emergencia/)).toBeInTheDocument();
+    expect(screen.getByText(/para el arribo estimado a la RN 9/)).toBeInTheDocument();
+    expect(screen.queryByText(/Sin lecturas todavía/)).toBeNull();
+  });
+
   it("MapaCorredor enlaza las cuatro cuencas y muestra la cuenta regresiva solo donde hay arribo pendiente", () => {
     render(
       <MemoryRouter>

@@ -51,7 +51,8 @@ export function TarjetaCuenca({ basinId, nombre, rio, cuenca, conectado }) {
   const em = cuenca ? emergenciaReciente(cuenca.nodo) : null;
   const arribo = cuenca?.minutos_restantes != null ? cuenta(cuenca.minutos_restantes) : null;
   // El backend arranca cada cuenca en verde antes de la primera lectura: eso no es un estado medido.
-  const sinLecturas = cuenca && !m && !em;
+  // Una alerta restaurada tras reiniciar el backend sí lo es, aunque todavía no haya lecturas nuevas.
+  const sinLecturas = cuenca && !m && !em && cuenca.nivel === "GREEN";
   const [IconoEnlace, enlace, colorEnlace] = ENLACES[estadoEnlace(cuenca?.nodo, cuenca?.origen)];
   return (
     <Link
